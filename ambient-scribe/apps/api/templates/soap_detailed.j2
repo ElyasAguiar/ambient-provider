@@ -1,0 +1,42 @@
+{# Template: SOAP Note - Detailed
+# Description: Comprehensive SOAP format with additional sections
+# Sections: chief_complaint, history_of_present_illness, review_of_systems, past_medical_history, medications, allergies, social_history, assessment, plan, follow_up
+# Custom: false
+#}
+
+# Detailed SOAP Note
+
+## Chief Complaint
+{{ chief_complaint or "Chief complaint not clearly stated in transcript." }}
+
+## History of Present Illness
+{{ history_of_present_illness or subjective or "No history of present illness documented." }}
+
+## Review of Systems
+{{ review_of_systems or "No review of systems performed." }}
+
+## Past Medical History
+{{ past_medical_history or "No past medical history discussed." }}
+
+## Medications
+{{ medications or "No medications discussed." }}
+
+## Allergies
+{{ allergies or "No allergies mentioned." }}
+
+## Social History
+{{ social_history or "No social history obtained." }}
+
+## Assessment
+{{ assessment or "No clinical assessment provided." }}
+
+## Plan
+{{ plan or "No treatment plan discussed." }}
+
+## Follow-up
+{{ follow_up or "No follow-up plans specified." }}
+
+{% if additional_notes %}
+## Additional Notes
+{{ additional_notes }}
+{% endif %}

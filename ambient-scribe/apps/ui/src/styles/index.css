@@ -1,0 +1,110 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom CSS variables are now replaced by KUI theme variables */
+/* KUI automatically provides comprehensive theme variables for light/dark modes */
+
+@layer base {
+  * {
+    @apply border-base;
+  }
+  body {
+    @apply bg-surface-base text-primary;
+  }
+}
+
+/* Note Editor Styles */
+@layer base {
+  .note-editor-textarea {
+    @apply prose prose-sm max-w-none focus:outline-none text-primary;
+    min-height: 300px;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  }
+  
+  /* Override prose default colors for better contrast */
+  .prose p {
+    @apply text-primary;
+  }
+  
+  .prose strong {
+    @apply text-primary font-semibold;
+  }
+  
+  .prose em {
+    @apply text-primary;
+  }
+  
+  .prose ul,
+  .prose ol {
+    @apply text-primary;
+  }
+  
+  .prose li {
+    @apply text-primary;
+  }
+}
+
+/* ContentEditable placeholder */
+[contenteditable][data-placeholder]:empty::before {
+  content: attr(data-placeholder);
+  color: #6b7280;
+  pointer-events: none;
+  font-style: italic;
+}
+
+.prose h1,
+.prose h2,
+.prose h3 {
+  @apply font-semibold text-primary;
+}
+
+/* Remove old ProseMirror placeholder styles */
+
+/* Citation styles */
+.timecode-link {
+  @apply inline-flex items-center rounded bg-accent-blue-subtle px-2 py-1 text-xs font-semibold text-accent-blue cursor-pointer hover:bg-accent-blue-subtle hover:text-accent-blue;
+}
+
+/* Transcript styles */
+.transcript-segment {
+  @apply mb-2 rounded-lg p-3 transition-colors;
+}
+
+.transcript-segment.speaker-1 {
+  @apply bg-accent-blue-subtle border-l-4 border-accent-blue;
+}
+
+.transcript-segment.speaker-2 {
+  @apply bg-accent-green-subtle border-l-4 border-accent-green;
+}
+
+.transcript-timestamp {
+  @apply text-xs text-primary cursor-pointer hover:text-brand;
+}
+
+/* Trace panel animations */
+.trace-item {
+  @apply animate-in slide-in-from-left duration-300;
+}
+
+/* Loading animations */
+.spinner {
+  @apply inline-block animate-spin rounded-full border-2 border-solid border-current border-r-transparent;
+}
+
+/* Prose overrides for better contrast in trace panels */
+.prose-purple,
+.prose-purple * {
+  @apply text-primary !important;
+}
+
+.prose-green,
+.prose-green * {
+  @apply text-primary !important;
+}
+
+.prose-blue,
+.prose-blue * {
+  @apply text-primary !important;
+}

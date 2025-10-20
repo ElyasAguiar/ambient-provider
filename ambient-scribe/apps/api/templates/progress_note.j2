@@ -1,0 +1,31 @@
+{# Template: Progress Note
+# Description: Follow-up progress note format
+# Sections: interval_history, current_symptoms, examination_findings, assessment, plan, medication_changes, follow_up, patient_education
+# Custom: false
+#}
+
+# Progress Note
+
+## Interval History
+{{ interval_history or subjective or "No interval history since last visit documented." }}
+
+## Current Symptoms
+{{ current_symptoms or "No current symptoms discussed." }}
+
+## Examination Findings
+{{ examination_findings or "No examination findings documented." }}
+
+## Assessment
+{{ assessment or "No assessment provided for this visit." }}
+
+## Plan
+{{ plan or "No plan discussed for ongoing care." }}
+
+## Medication Changes
+{{ medication_changes or "No medication changes discussed." }}
+
+## Follow Up
+{{ follow_up or "No specific follow-up instructions provided." }}
+
+## Patient Education
+{{ patient_education or "No patient education documented." }}

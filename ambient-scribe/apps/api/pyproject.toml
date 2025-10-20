@@ -1,0 +1,52 @@
+[project]
+name = "ambient-scribe-api"
+version = "0.1.0"
+description = "Ambient Scribe API - FastAPI backend for medical transcription and note generation"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "fastapi==0.118.0",
+    "uvicorn[standard]==0.35.0",
+    "python-multipart==0.0.20",
+    "pydantic==2.11.9",
+    "pydantic-settings==2.10.1",
+    "jinja2==3.1.6",
+    "aiofiles==24.1.0",
+    "python-dotenv==1.1.0",
+    "httpx==0.28.1",
+    "openai==1.81.0",
+    "nvidia-riva-client==2.19.1",
+    "librosa==0.11.0",
+    "soundfile==0.13.1",
+    "numpy==2.1.3",
+    "nemoguardrails==0.16.0",
+    "langchain-nvidia-ai-endpoints==0.3.18",
+    "slowapi==0.1.9",
+]
+
+[tool.setuptools]
+packages = ["ambient_scribe"]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.4.2",
+    "pytest-asyncio==1.2.0",
+    "black==25.9.0",
+    "isort==6.0.1",
+    "ruff==0.12.8",
+]
+
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.black]
+line-length = 88
+target-version = ['py313']
+
+[tool.isort]
+profile = "black"
+line_length = 88
+
+[tool.ruff]
+line-length = 88
+target-version = "py313"

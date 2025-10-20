@@ -1,0 +1,30 @@
+{# Template: Custom Medical Note
+# Description: Custom template with alternative section naming
+# Sections: chief_complaint, history, examination, clinical_impression, treatment_plan
+# Custom: true
+#}
+
+# Custom Medical Note
+
+## Chief Complaint
+{{ chief_complaint or "Not documented" }}
+
+## History
+{{ history or "No history obtained" }}
+
+## Examination
+{{ examination or "No examination performed" }}
+
+## Clinical Impression
+{{ clinical_impression or "No impression documented" }}
+
+## Treatment Plan
+{{ treatment_plan or "No plan discussed" }}
+
+{% if custom_sections %}
+{% for section in custom_sections %}
+## {{ section|title }}
+{{ get(section.lower()) or "No information provided" }}
+
+{% endfor %}
+{% endif %}

@@ -1,0 +1,27 @@
+{# Template: SOAP Note - Default
+# Description: Standard SOAP format for medical documentation
+# Sections: subjective, objective, assessment, plan
+# Custom: false
+#}
+
+# SOAP Note
+
+## Subjective
+{{ subjective or "No subjective information documented in the transcript." }}
+
+## Objective
+{{ objective or "No objective findings documented in the transcript." }}
+
+## Assessment
+{{ assessment or "No assessment provided in the transcript." }}
+
+## Plan
+{{ plan or "No treatment plan discussed in the transcript." }}
+
+{% if custom_sections %}
+{% for section in custom_sections %}
+## {{ section|title }}
+{{ get(section.lower()) or "No information provided for this section." }}
+
+{% endfor %}
+{% endif %}
