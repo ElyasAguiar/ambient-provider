@@ -721,3 +721,7 @@ For more information, see the [SECURITY.md](./SECURITY.md) file in this reposito
 Ambient Provider provides a complete solution for converting medical conversations into structured clinical documentation. The platform combines the power of NVIDIA's speech recognition technology with advanced AI reasoning to create accurate, professional medical notes.
 
 The modular architecture allows for easy customization and extension, while the Docker-based deployment ensures consistent behavior across different environments. Whether you're processing a single consultation or building a larger healthcare documentation workflow, Ambient Scribe provides the tools and flexibility you need.
+
+# License and Governing Terms
+
+PROVIDER GOVERNING TERMS: The API trial service is governed by the NVIDIA API Trial Terms of Service. The developer example software is governed by the Apache 2.0 License. Use of the NIM containers is governed by the NVIDIA Software License Agreement and Product Specific Terms for NVIDIA AI Products. Use of the ASR Parakeet 1.1b CTC en-US model is governed by the NVIDIA Community Model License Agreement. Use of the Llama-3.3-Nemotron-Super-49B-v1_5 model is governed by the NVIDIA Open Model License Agreement. ADDITIONAL INFORMATION: For Llama-3.3-Nemotron-Super-49b-v1.5, Llama 3.3 Community License Agreement. Built with Llama.
