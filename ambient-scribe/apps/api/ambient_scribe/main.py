@@ -21,7 +21,7 @@ app = FastAPI(
     version="0.1.0",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
-    openapi_url="/api/openapi.json"
+    openapi_url="/api/openapi.json",
 )
 
 app.state.limiter = limiter
@@ -50,11 +50,14 @@ app.include_router(transcribe.router, prefix="/api/transcribe", tags=["transcrip
 app.include_router(notes.router, prefix="/api/notes", tags=["notes"])
 app.include_router(templates.router, prefix="/api/templates", tags=["templates"])
 
+
 @app.get("/")
 async def root():
     """Root endpoint."""
     return {"message": "Ambient Scribe API", "version": "0.1.0"}
 
+
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run("ambient_scribe.main:app", host="0.0.0.0", port=8000, reload=True)
