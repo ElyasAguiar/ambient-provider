@@ -133,24 +133,25 @@ services:
     image: nvcr.io/nim/nvidia/parakeet-1-1b-ctc-en-us:latest
     container_name: parakeet-1-1b-ctc-en-us
     restart: unless-stopped
-    # profiles:
-    #   - riva-nim
     runtime: nvidia
     environment:
       - NGC_API_KEY=${NGC_API_KEY}
       - NIM_HTTP_API_PORT=9000
       - NIM_GRPC_API_PORT=50051
-      - NIM_TAGS_SELECTOR=name=parakeet-1-1b-ctc-en-us,mode=all,vad=silero,diarizer=sortformer
+      - NIM_TAGS_SELECTOR=name=parakeet-1-1b-ctc-en-us,mode=streaming,vad=silero
     ports:
       - "9000:9000"
       - "50051:50051"
-    shm_size: 8gb
+    shm_size: 16gb
+    volumes:
+      - parakeet-cache:/opt/nim/.cache
+      - parakeet-data:/data
     deploy:
       resources:
         limits:
-          memory: 16G
+          memory: 24G
         reservations:
-          memory: 8G
+          memory: 12G
           devices:
             - driver: nvidia
               device_ids: ["0"]
@@ -162,7 +163,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 120s
+      start_period: 300s
     logging:
       driver: "json-file"
       options:
@@ -218,7 +219,9 @@ volumes:
     driver: local
   api_logs:
     driver: local
-  # nginx_logs:
-  #   driver: local
   nim-llm-cache:
+    driver: local
+  parakeet-cache:
+    driver: local
+  parakeet-data:
     driver: local
