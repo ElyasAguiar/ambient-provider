@@ -33,7 +33,7 @@ class Settings(BaseSettings):
 
     # Riva ASR Configuration
     riva_uri: str = "parakeet-nim:50051"
-    riva_model: str = "parakeet-1.1b-en-US-asr-offline-silero-vad-sortformer"
+    riva_model: str = "parakeet-0-6b-ctc-en-us"
     riva_language: str = "en-US"
     enable_speaker_diarization: bool = True
 
