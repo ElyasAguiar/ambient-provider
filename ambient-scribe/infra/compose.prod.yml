@@ -2,52 +2,52 @@
 # SPDX-License-Identifier: Apache-2.0
 
 services:
-  # api:
-  #   build:
-  #     context: ..
-  #     dockerfile: infra/docker/api.Dockerfile
-  #   restart: unless-stopped
-  #   ports:
-  #     - "8000:8000"
-  #   env_file:
-  #     - ../apps/api/.env
-  #   environment:
-  #     - DEBUG=false
-  #     - STORAGE_BACKEND=${STORAGE_BACKEND:-local}
-  #     - UPLOAD_DIR=/app/uploads
-  #     - TEMPLATES_DIR=/app/templates
-  #     - MAX_CONCURRENT_TRANSCRIPTIONS=${MAX_CONCURRENT_TRANSCRIPTIONS:-3}
-  #     - NUMBA_CACHE_DIR=/tmp/numba_cache
-  #     - NUMBA_DISABLE_CACHING=1
-  #   volumes:
-  #     - api_uploads:/app/uploads
-  #     - api_logs:/app/logs
-  #     - ../apps/api/.env:/app/.env:ro
-  #   networks:
-  #     - ambient-network
-  #   deploy:
-  #     resources:
-  #       limits:
-  #         memory: 2G
-  #       reservations:
-  #         memory: 1G
-  #   healthcheck:
-  #     test:
-  #       [
-  #         "CMD",
-  #         "python",
-  #         "-c",
-  #         "import requests; requests.get('http://localhost:8000/api/health/', timeout=5)",
-  #       ]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #     start_period: 60s
-  #   logging:
-  #     driver: "json-file"
-  #     options:
-  #       max-size: "10m"
-  #       max-file: "3"
+  api:
+    build:
+      context: ..
+      dockerfile: infra/docker/api.Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - ../apps/api/.env
+    environment:
+      - DEBUG=false
+      - STORAGE_BACKEND=${STORAGE_BACKEND:-local}
+      - UPLOAD_DIR=/app/uploads
+      - TEMPLATES_DIR=/app/templates
+      - MAX_CONCURRENT_TRANSCRIPTIONS=${MAX_CONCURRENT_TRANSCRIPTIONS:-3}
+      - NUMBA_CACHE_DIR=/tmp/numba_cache
+      - NUMBA_DISABLE_CACHING=1
+    volumes:
+      - api_uploads:/app/uploads
+      - api_logs:/app/logs
+      - ../apps/api/.env:/app/.env:ro
+    networks:
+      - ambient-network
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import requests; requests.get('http://localhost:8000/api/health/', timeout=5)",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # ui:
   #   build:
