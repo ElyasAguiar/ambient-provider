@@ -133,8 +133,8 @@ services:
     image: nvcr.io/nim/nvidia/parakeet-1-1b-ctc-en-us:latest
     container_name: parakeet-1-1b-ctc-en-us
     restart: unless-stopped
-    profiles:
-      - riva-nim
+    # profiles:
+    #   - riva-nim
     runtime: nvidia
     environment:
       - NGC_API_KEY=${NGC_API_KEY}
@@ -175,8 +175,8 @@ services:
     image: nvcr.io/nim/nvidia/llama-3.3-nemotron-super-49b-v1:latest
     container_name: llama-3.3-nemotron-super-49b-v1
     restart: unless-stopped
-    profiles:
-      - riva-nim
+    # profiles:
+    #   - riva-nim
     runtime: nvidia
     ports:
       - "8001:8000"
