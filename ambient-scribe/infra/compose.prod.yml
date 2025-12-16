@@ -213,7 +213,7 @@ services:
 
   # NVIDIA Whisper NIM for local ASR
   whisper-nim:
-    image: nvcr.io/nim/nvidia/whisper-large-v3-turbo:latest
+    image: nvcr.io/nim/nvidia/whisper-large-v3:latest
     container_name: whisper-large-v3-turbo
     restart: unless-stopped
     runtime: nvidia
@@ -222,6 +222,7 @@ services:
       - NGC_API_KEY=${NGC_API_KEY}
       - NIM_HTTP_API_PORT=9000
       - NIM_GRPC_API_PORT=50051
+      - NIM_TAGS_SELECTOR=name=whisper-large-v3
     ports:
       - "9000:9000"
       - "50051:50051"
