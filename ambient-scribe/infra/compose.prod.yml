@@ -213,7 +213,7 @@ services:
 
   # NVIDIA Whisper NIM for local ASR
   whisper-nim:
-    image: nvcr.io/nim/openai/whisper-large-v3-turbo:latest
+    image: nvcr.io/nim/nvidia/whisper-large-v3-turbo:latest
     container_name: whisper-large-v3-turbo
     restart: unless-stopped
     runtime: nvidia
