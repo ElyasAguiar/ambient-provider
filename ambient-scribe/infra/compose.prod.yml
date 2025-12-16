@@ -16,7 +16,7 @@ services:
       - STORAGE_BACKEND=${STORAGE_BACKEND:-local}
       - UPLOAD_DIR=/app/uploads
       - TEMPLATES_DIR=/app/templates
-      - MAX_CONCURRENT_TRANSCRIPTIONS=${MAX_CONCURRENT_TRANSCRIPTIONS:-3}
+      - MAX_CONCURRENT_TRANSCRIPTIONS=1  # Reduzido de 3 para 1
       - NUMBA_CACHE_DIR=/tmp/numba_cache
       - NUMBA_DISABLE_CACHING=1
     volumes:
@@ -28,9 +28,9 @@ services:
     deploy:
       resources:
         limits:
-          memory: 2G
+          memory: 1.5G  # Reduzido de 2G
         reservations:
-          memory: 1G
+          memory: 512M  # Reduzido de 1G
     healthcheck:
       test:
         [
@@ -130,8 +130,8 @@ services:
   # NVIDIA Parakeet NIM for local Riva ASR
   # Use profile 'riva-nim' to deploy: docker-compose --profile riva-nim up
   parakeet-nim:
-    image: nvcr.io/nim/nvidia/parakeet-0-6b-ctc-en-us:latest
-    container_name: parakeet-0-6b-ctc-en-us
+    image: nvcr.io/nim/nvidia/parakeet-1-1b-ctc-en-us:latest
+    container_name: parakeet-1-1b-ctc-en-us
     restart: unless-stopped
     runtime: nvidia
     user: root
@@ -139,19 +139,19 @@ services:
       - NGC_API_KEY=${NGC_API_KEY}
       - NIM_HTTP_API_PORT=9000
       - NIM_GRPC_API_PORT=50051
-      - NIM_TAGS_SELECTOR=name=parakeet-0-6b-ctc-en-us,mode=ofl,bs=1
+      - NIM_TAGS_SELECTOR=name=parakeet-1-1b-ctc-en-us,mode=all,vad=silero,diarizer=sortformer
     ports:
       - "9000:9000"
       - "50051:50051"
-    shm_size: 16gb
+    shm_size: 6gb  # Reduzido de 8gb para 6gb
     volumes:
       - parakeet-cache:/opt/nim/.cache
     deploy:
       resources:
         limits:
-          memory: 24G
+          memory: 22G  # Aumentado de 20G para 22G (GPU T4 precisa de mais)
         reservations:
-          memory: 12G
+          memory: 12G  # Aumentado de 10G para 12G
           devices:
             - driver: nvidia
               device_ids: ["0"]
