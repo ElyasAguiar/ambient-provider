@@ -139,7 +139,7 @@ services:
       - NGC_API_KEY=${NGC_API_KEY}
       - NIM_HTTP_API_PORT=9000
       - NIM_GRPC_API_PORT=50051
-      - NIM_TAGS_SELECTOR=name=parakeet-1-1b-ctc-en-us,mode=all,vad=silero,diarizer=sortformer
+      - NIM_TAGS_SELECTOR=name=parakeet-1-1b-ctc-en-us,mode=streaming,vad=silero,diarizer=sortformer
     ports:
       - "9000:9000"
       - "50051:50051"
