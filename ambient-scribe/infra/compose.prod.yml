@@ -140,6 +140,7 @@ services:
       - NIM_HTTP_API_PORT=9000
       - NIM_GRPC_API_PORT=50051
       - NIM_TAGS_SELECTOR=name=parakeet-1-1b-ctc-en-us,mode=streaming,vad=silero,diarizer=sortformer
+      - NIM_MODEL_PROFILE=5cdc247ecf3eabe3ab6d7e6018d507d6efb0ebc0c21c8e7b2cd9e23059175ffe
     ports:
       - "9000:9000"
       - "50051:50051"
