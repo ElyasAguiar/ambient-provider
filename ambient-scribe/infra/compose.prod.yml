@@ -129,47 +129,47 @@ services:
 
   # NVIDIA Parakeet NIM for local Riva ASR
   # Use profile 'riva-nim' to deploy: docker-compose --profile riva-nim up
-  parakeet-nim:
-    image: nvcr.io/nim/nvidia/parakeet-1-1b-ctc-en-us:latest
-    container_name: parakeet-1-1b-ctc-en-us
-    restart: unless-stopped
-    runtime: nvidia
-    user: root
-    environment:
-      - NGC_API_KEY=${NGC_API_KEY}
-      - NIM_HTTP_API_PORT=9000
-      - NIM_GRPC_API_PORT=50051
-      - NIM_TAGS_SELECTOR=name=parakeet-1-1b-ctc-en-us,mode=streaming,vad=silero,diarizer=sortformer
-      - NIM_MODEL_PROFILE=5cdc247ecf3eabe3ab6d7e6018d507d6efb0ebc0c21c8e7b2cd9e23059175ffe
-    ports:
-      - "9000:9000"
-      - "50051:50051"
-    shm_size: 6gb  # Reduzido de 8gb para 6gb
-    volumes:
-      - parakeet-cache:/opt/nim/.cache
-    deploy:
-      resources:
-        limits:
-          memory: 22G  # Aumentado de 20G para 22G (GPU T4 precisa de mais)
-        reservations:
-          memory: 12G  # Aumentado de 10G para 12G
-          devices:
-            - driver: nvidia
-              device_ids: ["0"]
-              capabilities: [gpu]
-    networks:
-      - ambient-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/v1/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 300s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+  # parakeet-nim:
+  #   image: nvcr.io/nim/nvidia/parakeet-1-1b-ctc-en-us:latest
+  #   container_name: parakeet-1-1b-ctc-en-us
+  #   restart: unless-stopped
+  #   runtime: nvidia
+  #   user: root
+  #   environment:
+  #     - NGC_API_KEY=${NGC_API_KEY}
+  #     - NIM_HTTP_API_PORT=9000
+  #     - NIM_GRPC_API_PORT=50051
+  #     - NIM_TAGS_SELECTOR=name=parakeet-1-1b-ctc-en-us,mode=streaming,vad=silero,diarizer=sortformer
+  #     - NIM_MODEL_PROFILE=5cdc247ecf3eabe3ab6d7e6018d507d6efb0ebc0c21c8e7b2cd9e23059175ffe
+  #   ports:
+  #     - "9000:9000"
+  #     - "50051:50051"
+  #   shm_size: 6gb  # Reduzido de 8gb para 6gb
+  #   volumes:
+  #     - parakeet-cache:/opt/nim/.cache
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 22G  # Aumentado de 20G para 22G (GPU T4 precisa de mais)
+  #       reservations:
+  #         memory: 12G  # Aumentado de 10G para 12G
+  #         devices:
+  #           - driver: nvidia
+  #             device_ids: ["0"]
+  #             capabilities: [gpu]
+  #   networks:
+  #     - ambient-network
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:9000/v1/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 5
+  #     start_period: 300s
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "10m"
+  #       max-file: "3"
 
   # NVIDIA LLM NIM for self-hosted Llama-3.3-Nemotron-Super-49B
   # Use profile 'riva-nim' to deploy: docker-compose --profile riva-nim up
@@ -211,6 +211,47 @@ services:
   #       max-size: "10m"
   #       max-file: "3"
 
+  # NVIDIA Whisper NIM for local ASR
+  whisper-nim:
+    image: nvcr.io/nim/openai/whisper-large-v3-turbo:latest
+    container_name: whisper-large-v3-turbo
+    restart: unless-stopped
+    runtime: nvidia
+    user: root
+    environment:
+      - NGC_API_KEY=${NGC_API_KEY}
+      - NIM_HTTP_API_PORT=9000
+      - NIM_GRPC_API_PORT=50051
+    ports:
+      - "9000:9000"
+      - "50051:50051"
+    shm_size: 6gb
+    volumes:
+      - whisper-cache:/opt/nim/.cache
+    deploy:
+      resources:
+        limits:
+          memory: 18G  # Mais leve que Canary
+        reservations:
+          memory: 10G
+          devices:
+            - driver: nvidia
+              device_ids: ["0"]
+              capabilities: [gpu]
+    networks:
+      - ambient-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 300s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 networks:
   ambient-network:
     driver: bridge
@@ -223,4 +264,6 @@ volumes:
   nim-llm-cache:
     driver: local
   parakeet-cache:
+    driver: local
+  whisper-cache:
     driver: local
