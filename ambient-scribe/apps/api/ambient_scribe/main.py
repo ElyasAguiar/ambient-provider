@@ -4,7 +4,7 @@
 """FastAPI main application module."""
 from pathlib import Path
 
-from ambient_scribe.routers import health, notes, templates, transcribe
+from ambient_scribe.routers import health, notes, templates, transcribe, whisperx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -47,6 +47,7 @@ app.mount("/api/uploads", StaticFiles(directory="uploads"), name="api_uploads")
 # Include routers
 app.include_router(health.router, prefix="/api/health", tags=["health"])
 app.include_router(transcribe.router, prefix="/api/transcribe", tags=["transcription"])
+app.include_router(whisperx.router, prefix="/api/whisperx", tags=["whisperx"])
 app.include_router(notes.router, prefix="/api/notes", tags=["notes"])
 app.include_router(templates.router, prefix="/api/templates", tags=["templates"])
 

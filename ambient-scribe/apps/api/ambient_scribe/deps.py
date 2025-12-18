@@ -53,6 +53,13 @@ class Settings(BaseSettings):
     max_concurrent_transcriptions: int = 3
     transcription_timeout: int = 300  # 5 minutes
 
+    # WhisperX ASR Service Configuration
+    whisperx_service_url: str = "http://localhost:9000"
+    whisperx_available_models: str = "tiny,base,small,medium,large-v2,large-v3"
+    whisperx_default_model: str = "base"
+    whisperx_timeout: int = 300
+    whisperx_enabled: bool = True
+
     # Guardrails Configuration
     enable_guardrails: bool = False
     guardrails_config_path: str = os.path.join(
