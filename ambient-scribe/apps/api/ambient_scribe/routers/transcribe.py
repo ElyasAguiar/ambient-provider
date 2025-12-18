@@ -10,10 +10,19 @@ from typing import Optional
 
 from ambient_scribe.deps import get_settings, get_upload_dir
 from ambient_scribe.models import ErrorResponse, Transcript
-from ambient_scribe.services.asr import (stream_transcribe_audio_file,
-                                         transcribe_audio_file)
-from fastapi import (APIRouter, BackgroundTasks, Depends, File, HTTPException,
-                     Request, UploadFile)
+from ambient_scribe.services.asr import (
+    stream_transcribe_audio_file,
+    transcribe_audio_file,
+)
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    HTTPException,
+    Request,
+    UploadFile,
+)
 from fastapi.responses import StreamingResponse
 
 router = APIRouter()

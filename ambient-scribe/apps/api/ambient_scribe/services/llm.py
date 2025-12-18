@@ -7,13 +7,13 @@ from datetime import datetime
 from typing import Any, AsyncGenerator, Dict
 
 from ambient_scribe.deps import Settings, get_templates_dir
-from ambient_scribe.models import (NoteRequest, NoteResponse, TraceEvent,
-                                   Transcript)
-from ambient_scribe.services.guardrails import (apply_input_guardrails,
-                                                apply_output_guardrails,
-                                                validate_privacy_compliance)
-from ambient_scribe.services.templates import (get_template_info,
-                                               render_template)
+from ambient_scribe.models import NoteRequest, NoteResponse, TraceEvent, Transcript
+from ambient_scribe.services.guardrails import (
+    apply_input_guardrails,
+    apply_output_guardrails,
+    validate_privacy_compliance,
+)
+from ambient_scribe.services.templates import get_template_info, render_template
 from ambient_scribe.utils.timecodes import format_timecode
 from nemoguardrails import LLMRails, RailsConfig
 from openai import AsyncOpenAI

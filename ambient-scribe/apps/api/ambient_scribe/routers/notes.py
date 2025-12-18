@@ -8,8 +8,12 @@ from datetime import datetime
 from typing import List
 
 from ambient_scribe.deps import get_settings
-from ambient_scribe.models import (ErrorResponse, NoteRequest, NoteResponse,
-                                   SuggestionResponse)
+from ambient_scribe.models import (
+    ErrorResponse,
+    NoteRequest,
+    NoteResponse,
+    SuggestionResponse,
+)
 from ambient_scribe.routers.transcribe import _transcripts
 from ambient_scribe.services.llm import generate_note_service
 from ambient_scribe.services.suggestions import get_autocomplete_suggestions

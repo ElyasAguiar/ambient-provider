@@ -7,11 +7,13 @@ from typing import List
 
 from ambient_scribe.deps import get_settings, get_templates_dir
 from ambient_scribe.models import ErrorResponse, TemplateInfo, TemplateRequest
-from ambient_scribe.services.templates import (create_template,
-                                               get_available_templates,
-                                               get_template_defaults,
-                                               get_template_info,
-                                               render_template_preview)
+from ambient_scribe.services.templates import (
+    create_template,
+    get_available_templates,
+    get_template_defaults,
+    get_template_info,
+    render_template_preview,
+)
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
 router = APIRouter()
