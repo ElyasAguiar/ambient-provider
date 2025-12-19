@@ -1,0 +1,148 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    env_file:
+      - .env
+    environment:
+      - DEBUG=true
+      - NVIDIA_API_KEY=${NVIDIA_API_KEY}
+      - STORAGE_BACKEND=local
+      - UPLOAD_DIR=/app/uploads
+      - TEMPLATES_DIR=/app/templates
+      - NUMBA_CACHE_DIR=/tmp/numba_cache
+      - NUMBA_DISABLE_CACHING=1
+      - DATABASE_URL=postgresql+asyncpg://scribehub:scribehub@postgres:5432/scribehub
+    volumes:
+      - .:/app:delegated
+      - .env:/app/.env:delegated
+    command:
+      [
+        "uvicorn",
+        "ambient_scribe.main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000",
+        "--reload",
+        "--reload-dir",
+        "/app",
+      ]
+    networks:
+      - ambient-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import requests; requests.get('http://localhost:8000/api/health/', timeout=5)",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: ambient-scribe-postgres
+    environment:
+      POSTGRES_USER: scribehub
+      POSTGRES_PASSWORD: scribehub
+      POSTGRES_DB: scribehub
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - ambient-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scribehub"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # NVIDIA Parakeet NIM for local ASR (modelo de transcrição)
+  # parakeet-nim:
+  #   image: nvcr.io/nim/nvidia/parakeet-1-1b-ctc-en-us:latest
+  #   container_name: parakeet-nim
+  #   runtime: nvidia
+  #   environment:
+  #     - NGC_API_KEY=${NGC_API_KEY}
+  #     - NIM_HTTP_API_PORT=9000
+  #     - NIM_GRPC_API_PORT=50051
+  #     - NIM_TAGS_SELECTOR=name=parakeet-1-1b-ctc-en-us,mode=streaming,vad=silero,diarizer=sortformer
+  #   ports:
+  #     - "9000:9000"
+  #     - "50051:50051"
+  #   shm_size: 8gb
+  #   volumes:
+  #     - parakeet_cache:/opt/nim/.cache
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             device_ids: ["0"]
+  #             capabilities: [gpu]
+  #   networks:
+  #     - ambient-network
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:9000/v1/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 5
+  #     start_period: 120s
+
+  # NVIDIA LLM NIM for Llama-3.3-Nemotron-Super-49B
+  # llama-nim:
+  #   image: nvcr.io/nim/nvidia/llama-3.3-nemotron-super-49b-v1:latest
+  #   container_name: llama-nim
+  #   runtime: nvidia
+  #   ports:
+  #     - "8001:8000"
+  #   shm_size: 16gb
+  #   volumes:
+  #     - llama_cache:/opt/nim/.cache
+  #   environment:
+  #     - NIM_CACHE_PATH=/opt/nim/.cache
+  #     - NGC_API_KEY=${NGC_API_KEY}
+  #     - NVIDIA_VISIBLE_DEVICES=all
+  #     - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             device_ids: ["all"]
+  #             capabilities: [gpu]
+  #   networks:
+  #     - ambient-network
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:8000/v1/health"]
+  #     interval: 60s
+  #     timeout: 30s
+  #     retries: 10
+  #     start_period: 300s
+
+networks:
+  ambient-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  parakeet_cache:
+    driver: local
+  llama_cache:
+    driver: local

@@ -1,0 +1,13 @@
+{
+  "folders": [
+    {
+      "path": "../../../../../../whisperx-asr-service"
+    },
+    {
+      "path": "../../../../.."
+    },
+    {
+      "path": "../../../../../../unified-medical-scribe-ui"
+    }
+  ]
+}
