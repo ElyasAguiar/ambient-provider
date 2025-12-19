@@ -7,18 +7,22 @@ import json
 import uuid
 from pathlib import Path
 from typing import Optional
+from uuid import UUID
 
 from fastapi import (
     APIRouter,
     BackgroundTasks,
     Depends,
     File,
+    Form,
     HTTPException,
     Request,
     UploadFile,
 )
 from fastapi.responses import StreamingResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from ambient_scribe.database import get_db
 from ambient_scribe.deps import get_settings, get_upload_dir
 from ambient_scribe.models import ErrorResponse, Transcript
 from ambient_scribe.services.asr import (
@@ -45,14 +49,22 @@ async def transcribe_file(
     request: Request,
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
+    context_id: Optional[str] = Form(None),
     settings=Depends(get_settings),
     upload_dir: Path = Depends(get_upload_dir),
+    db: AsyncSession = Depends(get_db),
 ) -> Transcript:
-    """Transcribe an uploaded audio file."""
+    """
+    Transcribe an uploaded audio file.
+    
+    Args:
+        file: Audio file to transcribe
+        context_id: Optional context UUID for domain-specific word boosting
+    """
 
     logger = logging.getLogger("ambient_scribe.transcribe")
     logger.debug(
-        f"Received file upload: filename={file.filename}, content_type={file.content_type}"
+        f"Received file upload: filename={file.filename}, content_type={file.content_type}, context_id={context_id}"
     )
 
     # Validate file type
@@ -73,6 +85,16 @@ async def transcribe_file(
             detail=f"File too large. Maximum size is {settings.max_file_size} bytes",
         )
 
+    # Parse context_id if provided
+    context_uuid = None
+    if context_id:
+        try:
+            context_uuid = UUID(context_id)
+            logger.info(f"Using context: {context_uuid}")
+        except ValueError:
+            logger.warning(f"Invalid context_id format: {context_id}")
+            raise HTTPException(status_code=400, detail="Invalid context_id format")
+
     # Generate unique ID and save file
     transcript_id = str(uuid.uuid4())
     file_path = upload_dir / f"{transcript_id}_{file.filename}"
@@ -86,15 +108,17 @@ async def transcribe_file(
             buffer.write(content)
         logger.info(f"File saved successfully: {file_path}")
 
-        # Transcribe audio
+        # Transcribe audio with context
         logger.info(
-            f"Starting transcription: file_path={file_path}, transcript_id={transcript_id}"
+            f"Starting transcription: file_path={file_path}, transcript_id={transcript_id}, context={context_uuid}"
         )
         transcript = await transcribe_audio_file(
             file_path=file_path,
             transcript_id=transcript_id,
             filename=file.filename,
             settings=settings,
+            context_id=context_uuid,
+            db=db,
         )
         logger.info(f"Transcription completed: transcript_id={transcript_id}")
 
@@ -132,14 +156,22 @@ async def stream_transcribe_file(
     request: Request,
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
+    context_id: Optional[str] = Form(None),
     settings=Depends(get_settings),
     upload_dir: Path = Depends(get_upload_dir),
+    db: AsyncSession = Depends(get_db),
 ):
-    """Stream transcribe an uploaded audio file with real-time updates."""
+    """
+    Stream transcribe an uploaded audio file with real-time updates.
+    
+    Args:
+        file: Audio file to transcribe
+        context_id: Optional context UUID for domain-specific word boosting
+    """
 
     logger = logging.getLogger("ambient_scribe.transcribe")
     logger.debug(
-        f"Received streaming file upload: filename={file.filename}, content_type={file.content_type}"
+        f"Received streaming file upload: filename={file.filename}, content_type={file.content_type}, context_id={context_id}"
     )
 
     # Validate file type
@@ -148,6 +180,16 @@ async def stream_transcribe_file(
             f"Rejected file: filename={file.filename}, content_type={file.content_type}"
         )
         raise HTTPException(status_code=400, detail="File must be an audio file")
+    
+    # Parse context_id if provided
+    context_uuid = None
+    if context_id:
+        try:
+            context_uuid = UUID(context_id)
+            logger.info(f"Using context for streaming: {context_uuid}")
+        except ValueError:
+            logger.warning(f"Invalid context_id format: {context_id}")
+            raise HTTPException(status_code=400, detail="Invalid context_id format")
 
     # Check file size
     file_size = getattr(file, "size", None)
@@ -185,6 +227,8 @@ async def stream_transcribe_file(
                     transcript_id=transcript_id,
                     filename=file.filename,
                     settings=settings,
+                    context_id=context_uuid,
+                    db=db,
                 ):
                     yield f"data: {json.dumps(result)}\n\n"
                     last_result = result

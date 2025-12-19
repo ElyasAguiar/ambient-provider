@@ -17,19 +17,25 @@ pathlib.Path("/tmp/numba_cache").mkdir(parents=True, exist_ok=True)
 
 import asyncio
 import json
+import logging
 import uuid
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
-from typing import Any, AsyncGenerator, Dict, List
+from typing import Any, AsyncGenerator, Dict, List, Optional
+from uuid import UUID
 
 import librosa
 import riva.client
 import riva.client.proto.riva_asr_pb2 as rasr
 import soundfile as sf
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ambient_scribe.deps import Settings
 from ambient_scribe.models import Transcript, TranscriptSegment
+from ambient_scribe.services.domain_manager import DomainManager
+
+logger = logging.getLogger(__name__)
 
 
 def serialize_for_json(data: Dict[str, Any]) -> Dict[str, Any]:
@@ -100,9 +106,27 @@ Return only a JSON object: {{"patient": speaker_number, "provider": speaker_numb
 
 
 async def transcribe_audio_file(
-    file_path: Path, transcript_id: str, filename: str, settings: Settings
+    file_path: Path,
+    transcript_id: str,
+    filename: str,
+    settings: Settings,
+    context_id: Optional[UUID] = None,
+    db: Optional[AsyncSession] = None,
 ) -> Transcript:
-    """Transcribe an audio file using NVIDIA Riva ASR."""
+    """
+    Transcribe an audio file using NVIDIA Riva ASR.
+    
+    Args:
+        file_path: Path to the audio file
+        transcript_id: Unique identifier for this transcript
+        filename: Original filename
+        settings: Application settings
+        context_id: Optional context ID for domain-specific word boosting
+        db: Optional database session for loading context configuration
+    
+    Returns:
+        Transcript object with segments and speaker information
+    """
 
     try:
         # Convert audio to WAV format if needed
@@ -148,6 +172,25 @@ async def transcribe_audio_file(
             config, True, 2
         )  # 2 is just a hint, it is possible riva gives more
 
+        # Load context-specific word boosting if context_id is provided
+        if context_id and db:
+            try:
+                domain_manager = DomainManager(db)
+                terms, scores = await domain_manager.load_word_boosting_terms(context_id)
+                
+                if terms and scores:
+                    config.boosted_lm_words[:] = terms
+                    config.boosted_lm_scores[:] = scores
+                    logger.info(
+                        f"Applied word boosting for context {context_id}: {len(terms)} terms loaded"
+                    )
+                else:
+                    logger.info(f"No word boosting terms found for context {context_id}")
+            except Exception as e:
+                logger.warning(f"Failed to load word boosting for context {context_id}: {e}")
+        else:
+            logger.info("No context specified, using default ASR configuration")
+
         # Get audio bytes
         audio_data.seek(0)
         audio_bytes = audio_data.read()
@@ -186,9 +229,27 @@ async def transcribe_audio_file(
 
 
 async def stream_transcribe_audio_file(
-    file_path: Path, transcript_id: str, filename: str, settings: Settings
+    file_path: Path,
+    transcript_id: str,
+    filename: str,
+    settings: Settings,
+    context_id: Optional[UUID] = None,
+    db: Optional[AsyncSession] = None,
 ) -> AsyncGenerator[dict, None]:
-    """Stream transcribe an audio file using NVIDIA Riva ASR with real-time updates."""
+    """
+    Stream transcribe an audio file using NVIDIA Riva ASR with real-time updates.
+    
+    Args:
+        file_path: Path to the audio file
+        transcript_id: Unique identifier for this transcript
+        filename: Original filename
+        settings: Application settings
+        context_id: Optional context ID for domain-specific word boosting
+        db: Optional database session for loading context configuration
+    
+    Yields:
+        Dictionary with streaming updates
+    """
 
     try:
         # Check if streaming is enabled
@@ -196,7 +257,7 @@ async def stream_transcribe_audio_file(
             # Fall back to regular transcription
             print(f"Streaming is disabled, falling back to regular transcription")
             transcript = await transcribe_audio_file(
-                file_path, transcript_id, filename, settings
+                file_path, transcript_id, filename, settings, context_id, db
             )
             transcript_dict = serialize_for_json(transcript.dict())
 
@@ -248,6 +309,21 @@ async def stream_transcribe_audio_file(
 
         # Enable speaker diarization
         riva.client.add_speaker_diarization_to_config(config, True, 2)
+
+        # Load context-specific word boosting if context_id is provided
+        if context_id and db:
+            try:
+                domain_manager = DomainManager(db)
+                terms, scores = await domain_manager.load_word_boosting_terms(context_id)
+                
+                if terms and scores:
+                    config.config.boosted_lm_words[:] = terms
+                    config.config.boosted_lm_scores[:] = scores
+                    logger.info(
+                        f"Applied word boosting for streaming with context {context_id}: {len(terms)} terms"
+                    )
+            except Exception as e:
+                logger.warning(f"Failed to load word boosting for streaming context {context_id}: {e}")
 
         print(f"Starting streaming transcription of: {audio_file_to_use}")
 

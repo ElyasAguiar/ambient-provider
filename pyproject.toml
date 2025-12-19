@@ -7,7 +7,7 @@ name = "ambient-scribe-api"
 version = "0.1.0"
 description = "Ambient Scribe API - FastAPI backend for medical transcription and note generation"
 readme = "README.md"
-requires-python = ">=3.13,<3.14"
+requires-python = ">=3.10,<3.14"
 dependencies = [
     "fastapi==0.118.0",
     "uvicorn[standard]==0.35.0",
@@ -31,7 +31,7 @@ dependencies = [
     "asyncpg==0.30.0",
     "python-jose[cryptography]==3.3.0",
     "passlib[bcrypt]==1.7.4",
-    "bcrypt==4.2.1",
+    "bcrypt==4.0.1",
     "isort==6.0.1",
     "black==25.9.0",
     "email-validator==2.3.0",

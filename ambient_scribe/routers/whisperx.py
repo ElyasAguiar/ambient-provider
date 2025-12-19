@@ -18,7 +18,7 @@ from ambient_scribe.services.whisperx_service import (
     submit_whisperx_job,
 )
 
-router = APIRouter()
+router = APIRouter(prefix="/api/whisperx", tags=["whisperx"])
 logger = logging.getLogger(__name__)
 
 

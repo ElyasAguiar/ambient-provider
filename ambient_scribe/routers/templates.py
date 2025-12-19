@@ -17,7 +17,7 @@ from ambient_scribe.services.templates import (
     render_template_preview,
 )
 
-router = APIRouter()
+router = APIRouter(prefix="/api/templates", tags=["templates"])
 
 
 @router.get("/", response_model=List[TemplateInfo])

@@ -106,3 +106,5 @@ audio/
 # Temporary files
 *.tmp
 *.temp
+
+ambient-scribe

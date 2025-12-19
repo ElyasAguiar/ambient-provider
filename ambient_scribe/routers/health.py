@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends
 from ambient_scribe.deps import get_settings
 from ambient_scribe.models import HealthResponse
 
-router = APIRouter()
+router = APIRouter(prefix="/api/health", tags=["health"])
 
 
 @router.get("/", response_model=HealthResponse)
