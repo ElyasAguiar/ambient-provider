@@ -19,8 +19,7 @@ from ambient_scribe.routers import (
     health,
     notes,
     templates,
-    transcribe,
-    whisperx,
+    transcribe_jobs,
     workspaces,
 )
 
@@ -73,8 +72,7 @@ app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(contexts.router)
 app.include_router(workspaces.router)
-app.include_router(transcribe.router)
-app.include_router(whisperx.router)
+app.include_router(transcribe_jobs.router)
 app.include_router(notes.router)
 app.include_router(templates.router)
 

@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 
-from ambient_scribe.models import TemplateInfo, TemplateRequest
+from ambient_scribe.models.api.templates_schema import TemplateInfo, TemplateRequest
 
 
 def extract_template_defaults(template_content: str) -> List[str]:
@@ -86,9 +86,7 @@ def get_available_templates(templates_dir: Path) -> List[TemplateInfo]:
     return templates
 
 
-def get_template_info(
-    template_name: str, templates_dir: Path
-) -> Optional[TemplateInfo]:
+def get_template_info(template_name: str, templates_dir: Path) -> Optional[TemplateInfo]:
     """Get information about a specific template. Falls back to built-ins if no file exists."""
 
     template_path = templates_dir / f"{template_name}.j2"
@@ -104,9 +102,7 @@ def get_template_info(
 
             return TemplateInfo(
                 name=template_name,
-                display_name=metadata.get(
-                    "display_name", template_name.replace("_", " ").title()
-                ),
+                display_name=metadata.get("display_name", template_name.replace("_", " ").title()),
                 description=metadata.get("description", f"{template_name} template"),
                 sections=sections,
                 is_custom=metadata.get("is_custom", False),
@@ -234,9 +230,7 @@ def render_template_preview(
         # Fallback to built-in templates
         builtin = get_builtin_templates()
         if template_name not in builtin:
-            raise ValueError(
-                f"Preview rendering failed: Template '{template_name}' not found"
-            )
+            raise ValueError(f"Preview rendering failed: Template '{template_name}' not found")
         env = Environment(autoescape=False)
         template = env.from_string(builtin[template_name])
         rendered = template.render(**sample_data)

@@ -60,11 +60,12 @@ class Settings(BaseSettings):
     whisperx_timeout: int = 300
     whisperx_enabled: bool = True
 
+    # Transcription Engine Configuration
+    default_transcription_engine: str = "asr"  # "asr" or "whisperx"
+
     # Guardrails Configuration
     enable_guardrails: bool = False
-    guardrails_config_path: str = os.path.join(
-        os.path.dirname(os.path.dirname(__file__)), "config"
-    )
+    guardrails_config_path: str = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config")
     guardrails_log_level: str = "INFO"
 
     # System Prompt Configuration
@@ -73,10 +74,19 @@ class Settings(BaseSettings):
     )
 
     # Database Configuration
-    database_url: str = (
-        "postgresql+asyncpg://scribehub:scribehub@localhost:5432/scribehub"
-    )
+    database_url: str = "postgresql+asyncpg://scribehub:scribehub@localhost:5432/scribehub"
     database_echo: bool = False
+
+    # Redis Configuration
+    redis_url: str = "redis://localhost:6379/0"
+    redis_job_ttl: int = 3600  # 1 hour TTL for job status in Redis
+
+    # MinIO/S3 Configuration
+    minio_endpoint: str = "localhost:9000"
+    minio_access_key: str = "minioadmin"
+    minio_secret_key: str = "minioadmin"
+    minio_bucket_name: str = "transcriptions"
+    minio_use_ssl: bool = False
 
     # Auth Configuration
     secret_key: str = "your-secret-key-change-in-production-minimum-32-characters-long"

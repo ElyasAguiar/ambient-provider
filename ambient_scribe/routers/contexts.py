@@ -10,8 +10,8 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ambient_scribe.database import get_db
-from ambient_scribe.db_models import User
 from ambient_scribe.middleware.auth import get_current_active_user
+from ambient_scribe.models.database.users_model import User
 from ambient_scribe.repositories import ContextRatingRepository, TemplateRepository
 from ambient_scribe.services.domain_manager import DomainManager
 
@@ -215,11 +215,7 @@ async def get_context(
         )
 
     # Check authorization (only owner or if public/system)
-    if (
-        context.owner_id != current_user.id
-        and not context.is_public
-        and not context.is_system
-    ):
+    if context.owner_id != current_user.id and not context.is_public and not context.is_system:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to access this context",

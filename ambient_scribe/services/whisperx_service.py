@@ -11,7 +11,7 @@ from uuid import uuid4
 import aiohttp
 
 from ambient_scribe.deps import get_settings
-from ambient_scribe.models import Transcript, TranscriptSegment
+from ambient_scribe.models.api.transcripts_schema import Transcript, TranscriptSegment
 
 logger = logging.getLogger(__name__)
 
