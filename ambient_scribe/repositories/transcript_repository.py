@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from ambient_scribe import db_models
+from ambient_scribe.models import database as db_models
 
 
 class TranscriptRepository:

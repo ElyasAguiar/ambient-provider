@@ -11,18 +11,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 # Import models and database config
 from ambient_scribe.database import Base
-from ambient_scribe.db_models import (
-    Context,
-    ContextRating,
-    Note,
-    Session,
-    Template,
-    Transcript,
-    TranscriptJob,
-    User,
-    Workspace,
-)
 from ambient_scribe.deps import get_settings
+from ambient_scribe.models.database.contexts_model import Context, ContextRating
+from ambient_scribe.models.database.notes_model import Note
+from ambient_scribe.models.database.sessions_model import Session
+from ambient_scribe.models.database.templates_model import Template
+from ambient_scribe.models.database.transcripts_model import Transcript, TranscriptJob
+from ambient_scribe.models.database.users_model import User
+from ambient_scribe.models.database.workspaces_model import Workspace
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

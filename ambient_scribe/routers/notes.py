@@ -14,13 +14,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ambient_scribe.database import get_db
 from ambient_scribe.deps import get_settings
-from ambient_scribe.models import (
-    ErrorResponse,
+from ambient_scribe.models.api.common_schema import ErrorResponse
+from ambient_scribe.models.api.notes_schema import (
     NoteRequest,
     NoteResponse,
     SuggestionResponse,
-    Transcript,
 )
+from ambient_scribe.models.api.transcripts_schema import Transcript
 from ambient_scribe.repositories.transcript_repository import TranscriptRepository
 from ambient_scribe.services.llm import generate_note_service
 from ambient_scribe.services.suggestions import get_autocomplete_suggestions

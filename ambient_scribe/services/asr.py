@@ -32,7 +32,7 @@ import soundfile as sf
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ambient_scribe.deps import Settings
-from ambient_scribe.models import Transcript, TranscriptSegment
+from ambient_scribe.models.api.transcripts_schema import Transcript, TranscriptSegment
 from ambient_scribe.services.domain_manager import DomainManager
 
 logger = logging.getLogger(__name__)

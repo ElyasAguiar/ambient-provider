@@ -18,12 +18,12 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from ambient_scribe.deps import Settings
 from ambient_scribe.repositories.transcript_job_repository import TranscriptJobRepository
 from ambient_scribe.repositories.transcript_repository import TranscriptRepository
-from ambient_scribe.services.redis_client import RedisJobManager, RedisPublisher
+from ambient_scribe.services.redis import RedisJobManager, RedisPublisher
+from ambient_scribe.services.storage import S3StorageManager
 from ambient_scribe.services.transcription_service import (
     TranscriptionEngine,
     TranscriptionService,
 )
-from ambient_scribe.utils.storage import S3StorageManager
 
 logger = logging.getLogger(__name__)
 

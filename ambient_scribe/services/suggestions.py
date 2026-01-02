@@ -13,7 +13,7 @@ except ImportError:
     HAS_OPENAI = False
 
 from ambient_scribe.deps import Settings
-from ambient_scribe.models import Transcript
+from ambient_scribe.models.api.transcripts_schema import Transcript
 
 # Medical terminology and common phrases for autocomplete
 MEDICAL_TERMS = {

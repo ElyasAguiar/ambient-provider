@@ -10,7 +10,8 @@ from nemoguardrails import LLMRails, RailsConfig
 from openai import AsyncOpenAI
 
 from ambient_scribe.deps import Settings, get_templates_dir
-from ambient_scribe.models import NoteRequest, NoteResponse, TraceEvent, Transcript
+from ambient_scribe.models.api.notes_schema import NoteRequest, NoteResponse, TraceEvent
+from ambient_scribe.models.api.transcripts_schema import Transcript
 from ambient_scribe.services.guardrails import (
     apply_input_guardrails,
     apply_output_guardrails,

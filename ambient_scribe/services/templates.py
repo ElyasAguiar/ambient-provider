@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 
-from ambient_scribe.models import TemplateInfo, TemplateRequest
+from ambient_scribe.models.api.templates_schema import TemplateInfo, TemplateRequest
 
 
 def extract_template_defaults(template_content: str) -> List[str]:

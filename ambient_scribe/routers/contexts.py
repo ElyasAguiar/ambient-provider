@@ -10,8 +10,8 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ambient_scribe.database import get_db
-from ambient_scribe.db_models import User
 from ambient_scribe.middleware.auth import get_current_active_user
+from ambient_scribe.models.database.users_model import User
 from ambient_scribe.repositories import ContextRatingRepository, TemplateRepository
 from ambient_scribe.services.domain_manager import DomainManager
 

@@ -20,8 +20,8 @@ from ambient_scribe.database import get_db
 from ambient_scribe.deps import Settings, get_settings
 from ambient_scribe.repositories.transcript_job_repository import TranscriptJobRepository
 from ambient_scribe.repositories.transcript_repository import TranscriptRepository
-from ambient_scribe.services.redis_client import RedisJobManager, RedisSubscriber, get_redis_client
-from ambient_scribe.utils.storage import S3StorageManager
+from ambient_scribe.services.redis import RedisJobManager, RedisSubscriber, get_redis_client
+from ambient_scribe.services.storage import S3StorageManager
 
 router = APIRouter(prefix="/api/transcribe/jobs", tags=["transcription-jobs"])
 logger = logging.getLogger("ambient_scribe.jobs")

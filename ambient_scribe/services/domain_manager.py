@@ -8,7 +8,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ambient_scribe import db_models
+from ambient_scribe.models import database as db_models
 from ambient_scribe.repositories import ContextRepository
 
 logger = logging.getLogger(__name__)

@@ -11,7 +11,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ambient_scribe.deps import Settings
-from ambient_scribe.models import Transcript
+from ambient_scribe.models.api.transcripts_schema import Transcript
 from ambient_scribe.services.asr import transcribe_audio_file as asr_transcribe
 from ambient_scribe.services.whisperx_service import (
     WhisperXClient,

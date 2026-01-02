@@ -8,7 +8,8 @@ from typing import List
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
 from ambient_scribe.deps import get_settings, get_templates_dir
-from ambient_scribe.models import ErrorResponse, TemplateInfo, TemplateRequest
+from ambient_scribe.models.api.common_schema import ErrorResponse
+from ambient_scribe.models.api.templates_schema import TemplateInfo, TemplateRequest
 from ambient_scribe.services.templates import (
     create_template,
     get_available_templates,

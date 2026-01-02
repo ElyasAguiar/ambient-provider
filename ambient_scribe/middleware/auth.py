@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ambient_scribe.auth import decode_access_token
 from ambient_scribe.database import get_db
-from ambient_scribe.db_models import User
+from ambient_scribe.models.database.users_model import User
 from ambient_scribe.repositories import UserRepository
 
 security = HTTPBearer()
