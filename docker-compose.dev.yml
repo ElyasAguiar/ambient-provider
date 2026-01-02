@@ -20,6 +20,12 @@ services:
       - NUMBA_CACHE_DIR=/tmp/numba_cache
       - NUMBA_DISABLE_CACHING=1
       - DATABASE_URL=postgresql+asyncpg://scribehub:scribehub@postgres:5432/scribehub
+      - REDIS_URL=redis://redis:6379/0
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_BUCKET_NAME=transcriptions
+      - MINIO_USE_SSL=false
     volumes:
       - .:/app:delegated
       - .env:/app/.env:delegated
@@ -41,6 +47,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
     healthcheck:
       test:
         [
@@ -53,6 +63,47 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    env_file:
+      - .env
+    environment:
+      - DEBUG=true
+      - NVIDIA_API_KEY=${NVIDIA_API_KEY}
+      - DATABASE_URL=postgresql+asyncpg://scribehub:scribehub@postgres:5432/scribehub
+      - REDIS_URL=redis://redis:6379/0
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_BUCKET_NAME=transcriptions
+      - MINIO_USE_SSL=false
+      - TEMPLATES_DIR=/app/templates
+      - NUMBA_CACHE_DIR=/tmp/numba_cache
+      - NUMBA_DISABLE_CACHING=1
+    volumes:
+      - .:/app:delegated
+      - .env:/app/.env:delegated
+    command:
+      [
+        "arq",
+        "ambient_scribe.workers.transcription.WorkerSettings",
+      ]
+    networks:
+      - ambient-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    deploy:
+      replicas: 2
 
   postgres:
     image: postgres:16-alpine
@@ -72,6 +123,42 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: ambient-scribe-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - ambient-network
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    container_name: ambient-scribe-minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    networks:
+      - ambient-network
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # NVIDIA Parakeet NIM for local ASR (modelo de transcrição)
   # parakeet-nim:
@@ -142,6 +229,10 @@ networks:
 
 volumes:
   postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  minio_data:
     driver: local
   parakeet_cache:
     driver: local

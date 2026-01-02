@@ -71,9 +71,7 @@ async def detect_speaker_roles(transcript: Transcript, settings: Settings) -> di
 
 Return only a JSON object: {{"patient": speaker_number, "provider": speaker_number}}"""
 
-        client = AsyncOpenAI(
-            api_key=settings.nvidia_api_key, base_url=settings.openai_base_url
-        )
+        client = AsyncOpenAI(api_key=settings.nvidia_api_key, base_url=settings.openai_base_url)
         response = await client.chat.completions.create(
             model=settings.llm_model,
             messages=[
@@ -115,7 +113,7 @@ async def transcribe_audio_file(
 ) -> Transcript:
     """
     Transcribe an audio file using NVIDIA Riva ASR.
-    
+
     Args:
         file_path: Path to the audio file
         transcript_id: Unique identifier for this transcript
@@ -123,7 +121,7 @@ async def transcribe_audio_file(
         settings: Application settings
         context_id: Optional context ID for domain-specific word boosting
         db: Optional database session for loading context configuration
-    
+
     Returns:
         Transcript object with segments and speaker information
     """
@@ -160,9 +158,7 @@ async def transcribe_audio_file(
         )
 
         # Set audio encoding parameters
-        enc_enum = rasr.RecognitionConfig.DESCRIPTOR.fields_by_name[
-            "encoding"
-        ].enum_type
+        enc_enum = rasr.RecognitionConfig.DESCRIPTOR.fields_by_name["encoding"].enum_type
         config.encoding = enc_enum.values_by_name["LINEAR_PCM"].number
         config.sample_rate_hertz = 16000
         config.audio_channel_count = 1
@@ -177,7 +173,7 @@ async def transcribe_audio_file(
             try:
                 domain_manager = DomainManager(db)
                 terms, scores = await domain_manager.load_word_boosting_terms(context_id)
-                
+
                 if terms and scores:
                     config.boosted_lm_words[:] = terms
                     config.boosted_lm_scores[:] = scores
@@ -238,7 +234,7 @@ async def stream_transcribe_audio_file(
 ) -> AsyncGenerator[dict, None]:
     """
     Stream transcribe an audio file using NVIDIA Riva ASR with real-time updates.
-    
+
     Args:
         file_path: Path to the audio file
         transcript_id: Unique identifier for this transcript
@@ -246,7 +242,7 @@ async def stream_transcribe_audio_file(
         settings: Application settings
         context_id: Optional context ID for domain-specific word boosting
         db: Optional database session for loading context configuration
-    
+
     Yields:
         Dictionary with streaming updates
     """
@@ -315,7 +311,7 @@ async def stream_transcribe_audio_file(
             try:
                 domain_manager = DomainManager(db)
                 terms, scores = await domain_manager.load_word_boosting_terms(context_id)
-                
+
                 if terms and scores:
                     config.config.boosted_lm_words[:] = terms
                     config.config.boosted_lm_scores[:] = scores
@@ -323,7 +319,9 @@ async def stream_transcribe_audio_file(
                         f"Applied word boosting for streaming with context {context_id}: {len(terms)} terms"
                     )
             except Exception as e:
-                logger.warning(f"Failed to load word boosting for streaming context {context_id}: {e}")
+                logger.warning(
+                    f"Failed to load word boosting for streaming context {context_id}: {e}"
+                )
 
         print(f"Starting streaming transcription of: {audio_file_to_use}")
 
@@ -364,9 +362,7 @@ async def stream_transcribe_audio_file(
                                     speaker_tags.append(word.speaker_tag)
 
                             if speaker_tags:
-                                most_common_speaker = Counter(speaker_tags).most_common(
-                                    1
-                                )[0][0]
+                                most_common_speaker = Counter(speaker_tags).most_common(1)[0][0]
                                 speaker = f"Speaker {most_common_speaker}"
 
                         if result.is_final:
@@ -393,8 +389,7 @@ async def stream_transcribe_audio_file(
                                         confidences = [
                                             getattr(word, "confidence", 1.0)
                                             for word in words
-                                            if getattr(word, "confidence", None)
-                                            is not None
+                                            if getattr(word, "confidence", None) is not None
                                         ]
                                         confidence = (
                                             sum(confidences) / len(confidences)
@@ -549,9 +544,7 @@ def process_riva_response(response) -> List[TranscriptSegment]:
                     last_known_speaker = speaker
                 else:
                     # Word doesn't have speaker_tag, use last known speaker or default to 1
-                    speaker = (
-                        last_known_speaker if last_known_speaker is not None else 1
-                    )
+                    speaker = last_known_speaker if last_known_speaker is not None else 1
                     print(
                         f"DEBUG: Word '{getattr(word, 'word', '')}' missing speaker_tag, assigned to speaker {speaker}"
                     )
@@ -587,9 +580,7 @@ def process_riva_response(response) -> List[TranscriptSegment]:
                         nanos = getattr(t, "nanos", None)
                         if seconds is not None and nanos is not None:
                             time_val = seconds + nanos / 1e9
-                            print(
-                                f"DEBUG: Extracted time from seconds/nanos: {time_val}s"
-                            )
+                            print(f"DEBUG: Extracted time from seconds/nanos: {time_val}s")
 
                             # Validate the timestamp - should be reasonable for a conversation (< 1 hour typically)
                             if time_val > 3600:  # More than 1 hour
@@ -610,20 +601,14 @@ def process_riva_response(response) -> List[TranscriptSegment]:
 
                                 for factor, name in candidates:
                                     converted = time_val / factor
-                                    if (
-                                        0 <= converted <= 3600
-                                    ):  # Reasonable range: 0 to 1 hour
+                                    if 0 <= converted <= 3600:  # Reasonable range: 0 to 1 hour
                                         time_val = converted
-                                        print(
-                                            f"DEBUG: Converted from {name}: {time_val}s"
-                                        )
+                                        print(f"DEBUG: Converted from {name}: {time_val}s")
                                         break
 
                                 # If still unreasonable, return 0 to trigger estimation
                                 if time_val > 3600:
-                                    print(
-                                        f"DEBUG: Could not convert large timestamp, returning 0"
-                                    )
+                                    print(f"DEBUG: Could not convert large timestamp, returning 0")
                                     return 0.0
 
                             return max(0.0, time_val)
@@ -705,9 +690,7 @@ def process_riva_response(response) -> List[TranscriptSegment]:
         if full_text:
             import re
 
-            pattern = re.compile(
-                r"(?:^|\n)\s*(speaker[_\s-]?(\d+))\s*:\s*", re.IGNORECASE
-            )
+            pattern = re.compile(r"(?:^|\n)\s*(speaker[_\s-]?(\d+))\s*:\s*", re.IGNORECASE)
             parts = pattern.split(full_text)
             # parts will be like [pre, 'speaker_1', '1', text1, 'speaker_2', '2', text2, ...]
             if len(parts) > 1:
@@ -793,9 +776,7 @@ def fix_inconsistent_timestamps(
         # Check for unreasonably large jumps (> 30 minutes between segments)
         time_gap = curr_segment.start - prev_segment.start
         if time_gap > 1800:  # 30 minutes
-            issues_found.append(
-                f"Large time gap: {time_gap:.1f}s between segments {i-1} and {i}"
-            )
+            issues_found.append(f"Large time gap: {time_gap:.1f}s between segments {i-1} and {i}")
 
         # Check for segments that are very long (> 5 minutes)
         duration = curr_segment.end - curr_segment.start
@@ -829,9 +810,7 @@ def regenerate_timestamps_from_text(
 
     for i, segment in enumerate(segments):
         word_count = len(segment.text.split())
-        duration = max(
-            1.0, word_count / words_per_second
-        )  # Minimum 1 second per segment
+        duration = max(1.0, word_count / words_per_second)  # Minimum 1 second per segment
 
         new_segment = TranscriptSegment(
             start=current_time,
@@ -844,9 +823,7 @@ def regenerate_timestamps_from_text(
         new_segments.append(new_segment)
         current_time += duration + 0.5  # Add 0.5 second pause between segments
 
-        print(
-            f"DEBUG: Regenerated segment {i}: {new_segment.start:.1f}s - {new_segment.end:.1f}s"
-        )
+        print(f"DEBUG: Regenerated segment {i}: {new_segment.start:.1f}s - {new_segment.end:.1f}s")
 
     return new_segments
 
@@ -872,9 +849,7 @@ def add_estimated_timestamps(
         current_time = 0.0
         for i, segment in enumerate(segments):
             word_count = len(segment.text.split())
-            duration = max(
-                1.0, word_count / words_per_second
-            )  # Minimum 1 second per segment
+            duration = max(1.0, word_count / words_per_second)  # Minimum 1 second per segment
 
             segments[i] = TranscriptSegment(
                 start=current_time,

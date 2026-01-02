@@ -43,9 +43,7 @@ async def generate_note_service(
             raise ValueError("LLM model not configured")
 
         # Initialize OpenAI client
-        client = AsyncOpenAI(
-            api_key=settings.nvidia_api_key, base_url=settings.openai_base_url
-        )
+        client = AsyncOpenAI(api_key=settings.nvidia_api_key, base_url=settings.openai_base_url)
 
         # Prepare transcript text with speaker roles
         transcript_text = format_transcript_with_speakers(transcript)
@@ -53,9 +51,7 @@ async def generate_note_service(
         # Apply input guardrails to protect patient information
         if settings.enable_guardrails:
             try:
-                filtered_transcript = await apply_input_guardrails(
-                    transcript_text, settings
-                )
+                filtered_transcript = await apply_input_guardrails(transcript_text, settings)
                 if filtered_transcript != transcript_text:
                     trace_events.append(
                         TraceEvent(
@@ -135,9 +131,7 @@ async def stream_note_service(
             templates_dir = get_templates_dir()
             info = get_template_info(request.template_name, templates_dir)
             if info and info.sections:
-                sections = [
-                    s for s in info.sections if isinstance(s, str) and s.strip()
-                ]
+                sections = [s for s in info.sections if isinstance(s, str) and s.strip()]
         except Exception:
             sections = []
 
@@ -210,9 +204,7 @@ async def stream_note_service(
                 filtered_note = await apply_output_guardrails(rendered_note, settings)
 
                 # Validate privacy compliance
-                validation_result = await validate_privacy_compliance(
-                    filtered_note, settings
-                )
+                validation_result = await validate_privacy_compliance(filtered_note, settings)
 
                 yield {
                     "type": "trace",
@@ -342,9 +334,7 @@ Transcript:
             "section": section,
             "system_prompt": system_message,
             "user_prompt": (
-                enhanced_prompt[:500] + "..."
-                if len(enhanced_prompt) > 500
-                else enhanced_prompt
+                enhanced_prompt[:500] + "..." if len(enhanced_prompt) > 500 else enhanced_prompt
             ),
             "model": settings.llm_model,
             "max_tokens": 1024,
@@ -384,9 +374,7 @@ Transcript:
                 full_response += chunk_content
             else:
                 chunk_content = (
-                    chunk.choices[0].delta.content
-                    if chunk.choices[0].delta.content
-                    else ""
+                    chunk.choices[0].delta.content if chunk.choices[0].delta.content else ""
                 )
                 full_response += chunk_content
 
@@ -430,9 +418,7 @@ Transcript:
                         "timestamp": datetime.now().isoformat(),
                         "metadata": {
                             "section": section,
-                            "partial_reasoning": reasoning_buffer.replace(
-                                "REASONING:", ""
-                            )
+                            "partial_reasoning": reasoning_buffer.replace("REASONING:", "")
                             .strip()
                             .replace("**", "")
                             .rstrip("*")
@@ -450,9 +436,7 @@ Transcript:
                         "timestamp": datetime.now().isoformat(),
                         "metadata": {
                             "section": section,
-                            "partial_content": content_buffer.replace(
-                                "SECTION CONTENT:", ""
-                            )
+                            "partial_content": content_buffer.replace("SECTION CONTENT:", "")
                             .strip()
                             .replace("**", "")
                             .rstrip("*")
@@ -473,9 +457,7 @@ Transcript:
             # Fallback if the format isn't followed - try to extract just content without reasoning
             if "SECTION CONTENT:" in full_response:
                 section_content = full_response.split("SECTION CONTENT:")[1].strip()
-                reasoning = (
-                    "LLM provided section content without explicit reasoning format"
-                )
+                reasoning = "LLM provided section content without explicit reasoning format"
             else:
                 section_content = full_response.strip()
                 reasoning = "LLM did not provide explicit reasoning"
@@ -485,13 +467,9 @@ Transcript:
             # Remove markdown artifacts and unwanted formatting
             reasoning = reasoning.strip()
             # Remove standalone asterisks and clean up formatting
-            reasoning = (
-                reasoning.replace("**\n", "").replace("\n**", "").replace("**", "")
-            )
+            reasoning = reasoning.replace("**\n", "").replace("\n**", "").replace("**", "")
             # Remove excessive newlines and spaces
-            reasoning = "\n".join(
-                line.strip() for line in reasoning.split("\n") if line.strip()
-            )
+            reasoning = "\n".join(line.strip() for line in reasoning.split("\n") if line.strip())
             # Remove any trailing asterisks or formatting and leading colons
             reasoning = reasoning.rstrip("*").rstrip().lstrip("*").lstrip(":").strip()
 
@@ -501,24 +479,18 @@ Transcript:
             section_content = section_content.strip()
             # Remove any standalone asterisks or other formatting artifacts
             section_content = (
-                section_content.replace("**\n", "")
-                .replace("\n**", "")
-                .replace("**", "")
+                section_content.replace("**\n", "").replace("\n**", "").replace("**", "")
             )
 
         # Apply output guardrails to section content
         if settings.enable_guardrails and section_content:
             try:
-                filtered_content = await apply_output_guardrails(
-                    section_content, settings
-                )
+                filtered_content = await apply_output_guardrails(section_content, settings)
                 if filtered_content != section_content:
                     logger.info(f"Section {section} content filtered for privacy")
                 section_content = filtered_content
             except Exception as e:
-                logger.warning(
-                    f"Section content filtering failed for {section}: {str(e)}"
-                )
+                logger.warning(f"Section content filtering failed for {section}: {str(e)}")
 
         # Final completion event
         yield {
@@ -557,9 +529,7 @@ def format_transcript_with_speakers(transcript: Transcript) -> str:
 
     # Use stored speaker roles if available, otherwise fall back to keyword matching
     if transcript.speaker_roles:
-        speaker_roles = {
-            tag: role.title() for tag, role in transcript.speaker_roles.items()
-        }
+        speaker_roles = {tag: role.title() for tag, role in transcript.speaker_roles.items()}
     else:
         speaker_roles = {}  # Track potential roles based on content
 
@@ -592,13 +562,9 @@ def format_transcript_with_speakers(transcript: Transcript) -> str:
     # Format transcript with roles
     for segment in transcript.segments:
         if segment.speaker_tag in speaker_roles:
-            speaker = (
-                f"{speaker_roles[segment.speaker_tag]} (Speaker {segment.speaker_tag})"
-            )
+            speaker = f"{speaker_roles[segment.speaker_tag]} (Speaker {segment.speaker_tag})"
         else:
-            speaker = (
-                f"Speaker {segment.speaker_tag}" if segment.speaker_tag else "Speaker"
-            )
+            speaker = f"Speaker {segment.speaker_tag}" if segment.speaker_tag else "Speaker"
 
         # Format timestamp as MM:SS with clear formatting
         timestamp = f"**[{format_timecode(segment.start)}]**"

@@ -73,9 +73,7 @@ class DomainManager:
         Returns:
             List of public Context objects
         """
-        return await self.context_repo.list_public(
-            limit=limit, offset=offset, sort_by=sort_by
-        )
+        return await self.context_repo.list_public(limit=limit, offset=offset, sort_by=sort_by)
 
     async def create_context(
         self,
@@ -116,9 +114,7 @@ class DomainManager:
             icon=icon,
         )
 
-    async def update_context(
-        self, context_id: UUID, **kwargs
-    ) -> Optional[db_models.Context]:
+    async def update_context(self, context_id: UUID, **kwargs) -> Optional[db_models.Context]:
         """
         Update a context.
 
@@ -176,9 +172,7 @@ class DomainManager:
             icon=original.icon,
         )
 
-    async def load_word_boosting_terms(
-        self, context_id: UUID
-    ) -> Tuple[List[str], List[float]]:
+    async def load_word_boosting_terms(self, context_id: UUID) -> Tuple[List[str], List[float]]:
         """
         Load word boosting terms and scores for a context.
 
@@ -209,9 +203,7 @@ class DomainManager:
             all_terms.extend(terms)
             all_scores.extend([boost_score] * len(terms))
 
-        logger.info(
-            f"Loaded {len(all_terms)} word boosting terms from context '{context.name}'"
-        )
+        logger.info(f"Loaded {len(all_terms)} word boosting terms from context '{context.name}'")
 
         return all_terms, all_scores
 
@@ -250,9 +242,7 @@ class DomainManager:
 
         # Validate context has required fields
         if not context.word_boosting_config or not context.templates:
-            logger.warning(
-                f"Cannot publish context {context_id}: missing required data"
-            )
+            logger.warning(f"Cannot publish context {context_id}: missing required data")
             return False
 
         await self.context_repo.update(context_id, is_public=True)

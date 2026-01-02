@@ -35,9 +35,7 @@ async def get_template(
     """Get information about a specific template."""
     template_info = get_template_info(template_name, templates_dir)
     if not template_info:
-        raise HTTPException(
-            status_code=404, detail=f"Template '{template_name}' not found"
-        )
+        raise HTTPException(status_code=404, detail=f"Template '{template_name}' not found")
     return template_info
 
 
@@ -50,9 +48,7 @@ async def create_new_template(
         template_info = create_template(request, templates_dir)
         return template_info
     except Exception as e:
-        raise HTTPException(
-            status_code=400, detail=f"Failed to create template: {str(e)}"
-        )
+        raise HTTPException(status_code=400, detail=f"Failed to create template: {str(e)}")
 
 
 @router.post("/upload")
@@ -65,9 +61,7 @@ async def upload_template(
 
     # Validate file type
     if not file.filename.endswith(".j2"):
-        raise HTTPException(
-            status_code=400, detail="Template file must have .j2 extension"
-        )
+        raise HTTPException(status_code=400, detail="Template file must have .j2 extension")
 
     # Use provided name or derive from filename
     template_name = name or file.filename.replace(".j2", "")
@@ -82,9 +76,7 @@ async def upload_template(
         return {"message": f"Template '{template_name}' uploaded successfully"}
 
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to upload template: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to upload template: {str(e)}")
 
 
 @router.post("/{template_name}/preview")
@@ -107,9 +99,7 @@ async def preview_template(
         }
 
     except Exception as e:
-        raise HTTPException(
-            status_code=400, detail=f"Failed to preview template: {str(e)}"
-        )
+        raise HTTPException(status_code=400, detail=f"Failed to preview template: {str(e)}")
 
 
 @router.get("/{template_name}/defaults", response_model=List[str])
@@ -121,29 +111,21 @@ async def get_template_default_messages(
         defaults = get_template_defaults(template_name, templates_dir)
         return defaults
     except Exception as e:
-        raise HTTPException(
-            status_code=400, detail=f"Failed to get template defaults: {str(e)}"
-        )
+        raise HTTPException(status_code=400, detail=f"Failed to get template defaults: {str(e)}")
 
 
 @router.delete("/{template_name}")
-async def delete_template(
-    template_name: str, templates_dir: Path = Depends(get_templates_dir)
-):
+async def delete_template(template_name: str, templates_dir: Path = Depends(get_templates_dir)):
     """Delete a custom template."""
 
     template_path = templates_dir / f"{template_name}.j2"
 
     if not template_path.exists():
-        raise HTTPException(
-            status_code=404, detail=f"Template '{template_name}' not found"
-        )
+        raise HTTPException(status_code=404, detail=f"Template '{template_name}' not found")
 
     try:
         template_path.unlink()
         return {"message": f"Template '{template_name}' deleted successfully"}
 
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to delete template: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to delete template: {str(e)}")

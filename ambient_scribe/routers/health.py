@@ -32,13 +32,9 @@ async def health_check(settings=Depends(get_settings)) -> HealthResponse:
         services["riva_asr"] = "not_configured"
 
     # Check templates directory
-    services["templates"] = (
-        "ok" if os.path.exists(settings.templates_dir) else "missing"
-    )
+    services["templates"] = "ok" if os.path.exists(settings.templates_dir) else "missing"
 
     # Check upload directory
     services["storage"] = "ok" if os.path.exists(settings.upload_dir) else "missing"
 
-    return HealthResponse(
-        status="healthy", version=settings.api_version, services=services
-    )
+    return HealthResponse(status="healthy", version=settings.api_version, services=services)

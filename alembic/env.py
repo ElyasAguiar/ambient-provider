@@ -18,6 +18,7 @@ from ambient_scribe.db_models import (
     Session,
     Template,
     Transcript,
+    TranscriptJob,
     User,
     Workspace,
 )

@@ -38,16 +38,12 @@ class UserRepository:
 
     async def get_by_id(self, user_id: UUID) -> Optional[db_models.User]:
         """Get user by ID."""
-        result = await self.db.execute(
-            select(db_models.User).where(db_models.User.id == user_id)
-        )
+        result = await self.db.execute(select(db_models.User).where(db_models.User.id == user_id))
         return result.scalar_one_or_none()
 
     async def get_by_email(self, email: str) -> Optional[db_models.User]:
         """Get user by email."""
-        result = await self.db.execute(
-            select(db_models.User).where(db_models.User.email == email)
-        )
+        result = await self.db.execute(select(db_models.User).where(db_models.User.email == email))
         return result.scalar_one_or_none()
 
     async def get_by_username(self, username: str) -> Optional[db_models.User]:
@@ -266,9 +262,7 @@ class TemplateRepository:
         )
         return list(result.scalars().all())
 
-    async def get_default_for_context(
-        self, context_id: UUID
-    ) -> Optional[db_models.Template]:
+    async def get_default_for_context(self, context_id: UUID) -> Optional[db_models.Template]:
         """Get the default template for a context."""
         result = await self.db.execute(
             select(db_models.Template).where(
@@ -331,9 +325,7 @@ class SessionRepository:
         self, workspace_id: UUID, status: Optional[str] = None
     ) -> List[db_models.Session]:
         """List all sessions in a workspace."""
-        query = select(db_models.Session).where(
-            db_models.Session.workspace_id == workspace_id
-        )
+        query = select(db_models.Session).where(db_models.Session.workspace_id == workspace_id)
 
         if status:
             query = query.where(db_models.Session.status == status)
@@ -342,9 +334,7 @@ class SessionRepository:
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
-    async def update_status(
-        self, session_id: UUID, status: str
-    ) -> Optional[db_models.Session]:
+    async def update_status(self, session_id: UUID, status: str) -> Optional[db_models.Session]:
         """Update session status."""
         session = await self.get_by_id(session_id)
         if session:
@@ -359,69 +349,6 @@ class SessionRepository:
             await self.db.delete(session)
             return True
         return False
-
-
-class TranscriptRepository:
-    """Repository for Transcript operations."""
-
-    def __init__(self, db: AsyncSession):
-        self.db = db
-
-    async def create(
-        self,
-        session_id: UUID,
-        filename: str,
-        audio_url: str,
-        language: str = "en-US",
-        duration: Optional[float] = None,
-        segments: Optional[List] = None,
-        speaker_roles: Optional[dict] = None,
-        status: str = "processing",
-    ) -> db_models.Transcript:
-        """Create a new transcript."""
-        transcript = db_models.Transcript(
-            session_id=session_id,
-            filename=filename,
-            audio_url=audio_url,
-            language=language,
-            duration=duration,
-            segments=segments or [],
-            speaker_roles=speaker_roles,
-            status=status,
-        )
-        self.db.add(transcript)
-        await self.db.flush()
-        return transcript
-
-    async def get_by_id(self, transcript_id: UUID) -> Optional[db_models.Transcript]:
-        """Get transcript by ID."""
-        result = await self.db.execute(
-            select(db_models.Transcript)
-            .options(selectinload(db_models.Transcript.notes))
-            .where(db_models.Transcript.id == transcript_id)
-        )
-        return result.scalar_one_or_none()
-
-    async def update_status(
-        self,
-        transcript_id: UUID,
-        status: str,
-        segments: Optional[List] = None,
-        speaker_roles: Optional[dict] = None,
-        error_message: Optional[str] = None,
-    ) -> Optional[db_models.Transcript]:
-        """Update transcript status and data."""
-        transcript = await self.get_by_id(transcript_id)
-        if transcript:
-            transcript.status = status
-            if segments is not None:
-                transcript.segments = segments
-            if speaker_roles is not None:
-                transcript.speaker_roles = speaker_roles
-            if error_message is not None:
-                transcript.error_message = error_message
-            await self.db.flush()
-        return transcript
 
 
 class NoteRepository:

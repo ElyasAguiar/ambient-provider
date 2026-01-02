@@ -215,11 +215,7 @@ async def get_context(
         )
 
     # Check authorization (only owner or if public/system)
-    if (
-        context.owner_id != current_user.id
-        and not context.is_public
-        and not context.is_system
-    ):
+    if context.owner_id != current_user.id and not context.is_public and not context.is_system:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to access this context",

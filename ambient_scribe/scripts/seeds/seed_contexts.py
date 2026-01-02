@@ -26,7 +26,6 @@ from ambient_scribe.auth import get_password_hash
 from ambient_scribe.database import AsyncSessionLocal, init_db
 from ambient_scribe.db_models import Context, Template, User
 
-
 # Medical context configuration
 MEDICAL_CONTEXT = {
     "name": "Consultas Médicas",
