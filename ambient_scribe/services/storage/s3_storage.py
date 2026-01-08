@@ -77,7 +77,7 @@ class S3StorageManager:
         self, file_content: bytes, filename: str, subfolder: Optional[str] = None
     ) -> str:
         """
-        Save file to S3/MinIO.
+        Save file to S3/MinIO and return object key.
 
         Args:
             file_content: File content as bytes
@@ -85,7 +85,7 @@ class S3StorageManager:
             subfolder: Optional subfolder path
 
         Returns:
-            S3 object key (path)
+            S3 object key (permanent path) for the uploaded file
         """
         # Generate unique filename
         file_id = str(uuid.uuid4())
@@ -109,6 +109,7 @@ class S3StorageManager:
                 Body=file_content,
                 ContentType=content_type,
             )
+            # Return object key for permanent storage in database
             return object_key
         except ClientError as e:
             raise Exception(f"Error uploading file to S3: {e}")

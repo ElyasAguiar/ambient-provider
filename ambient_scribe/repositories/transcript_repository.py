@@ -22,7 +22,7 @@ class TranscriptRepository:
     async def create(
         self,
         filename: str,
-        audio_url: str,
+        audio_key: str,
         language: str = "en-US",
         session_id: Optional[UUID] = None,
     ) -> db_models.Transcript:
@@ -31,7 +31,7 @@ class TranscriptRepository:
 
         Args:
             filename: Original audio filename
-            audio_url: URL/path to audio file (MinIO)
+            audio_key: S3 object key (permanent path) to audio file
             language: Audio language
             session_id: Optional associated session ID
 
@@ -41,7 +41,7 @@ class TranscriptRepository:
         transcript = db_models.Transcript(
             session_id=session_id,
             filename=filename,
-            audio_url=audio_url,
+            audio_key=audio_key,
             language=language,
             status="processing",
             segments=[],

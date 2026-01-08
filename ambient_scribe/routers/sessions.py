@@ -6,7 +6,7 @@ import logging
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,9 +15,15 @@ from ambient_scribe.middleware.auth import get_current_active_user
 from ambient_scribe.models import database as db_models
 from ambient_scribe.models.database.users_model import User
 from ambient_scribe.repositories import SessionRepository, TranscriptRepository
+from ambient_scribe.services.storage import S3StorageManager
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
+
+
+def get_storage_manager(request: Request) -> S3StorageManager:
+    """Get storage manager from app state."""
+    return request.app.state.storage_manager
 
 
 class TranscriptionSegmentResponse(BaseModel):
@@ -51,7 +57,7 @@ class TranscriptionCreate(BaseModel):
     """Transcription creation request."""
 
     filename: str
-    audio_url: str
+    audio_key: str
     language: str = "en-US"
 
 
@@ -87,6 +93,7 @@ async def list_transcriptions(
     session_id: UUID,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
+    storage: S3StorageManager = Depends(get_storage_manager),
 ):
     """List all transcriptions for a session."""
     session = await verify_session_access(session_id, current_user, db)
@@ -99,7 +106,7 @@ async def list_transcriptions(
             id=str(transcript.id),
             session_id=str(transcript.session_id),
             filename=transcript.filename,
-            audio_url=transcript.audio_url,
+            audio_url=storage.generate_presigned_url(transcript.audio_key, expiration=3600),
             language=transcript.language,
             duration=transcript.duration,
             segments=[
@@ -132,6 +139,7 @@ async def create_transcription(
     transcription_data: TranscriptionCreate,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
+    storage: S3StorageManager = Depends(get_storage_manager),
 ):
     """Create a new transcription for a session."""
     session = await verify_session_access(session_id, current_user, db)
@@ -140,7 +148,7 @@ async def create_transcription(
     transcript_repo = TranscriptRepository(db)
     transcript = await transcript_repo.create(
         filename=transcription_data.filename,
-        audio_url=transcription_data.audio_url,
+        audio_key=transcription_data.audio_key,
         language=transcription_data.language,
         session_id=session.id,
     )
@@ -152,7 +160,7 @@ async def create_transcription(
         id=str(transcript.id),
         session_id=str(transcript.session_id),
         filename=transcript.filename,
-        audio_url=transcript.audio_url,
+        audio_url=storage.generate_presigned_url(transcript.audio_key, expiration=3600),
         language=transcript.language,
         duration=transcript.duration,
         segments=[],
@@ -173,6 +181,7 @@ async def get_transcription(
     transcription_id: UUID,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
+    storage: S3StorageManager = Depends(get_storage_manager),
 ):
     """Get a specific transcription."""
     session = await verify_session_access(session_id, current_user, db)
@@ -190,7 +199,7 @@ async def get_transcription(
         id=str(transcript.id),
         session_id=str(transcript.session_id),
         filename=transcript.filename,
-        audio_url=transcript.audio_url,
+        audio_url=storage.generate_presigned_url(transcript.audio_key, expiration=3600),
         language=transcript.language,
         duration=transcript.duration,
         segments=[
@@ -221,6 +230,7 @@ async def update_transcription(
     transcription_data: TranscriptionUpdate,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
+    storage: S3StorageManager = Depends(get_storage_manager),
 ):
     """Update a transcription."""
     session = await verify_session_access(session_id, current_user, db)
@@ -263,7 +273,7 @@ async def update_transcription(
         id=str(transcript.id),
         session_id=str(transcript.session_id),
         filename=transcript.filename,
-        audio_url=transcript.audio_url,
+        audio_url=storage.generate_presigned_url(transcript.audio_key, expiration=3600),
         language=transcript.language,
         duration=transcript.duration,
         segments=[

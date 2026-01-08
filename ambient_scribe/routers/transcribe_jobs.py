@@ -27,28 +27,12 @@ router = APIRouter(prefix="/api/transcribe/jobs", tags=["transcription-jobs"])
 logger = logging.getLogger("ambient_scribe.jobs")
 limiter = Limiter(key_func=get_remote_address)
 
-# Storage manager will be initialized on first request
-_storage_manager: Optional[S3StorageManager] = None
 _redis_pool = None
 
 
-def get_storage_manager(settings: Settings = Depends(get_settings)) -> S3StorageManager:
-    """Get or create storage manager."""
-    global _storage_manager
-    if _storage_manager is None:
-        minio_endpoint = settings.minio_endpoint
-        # Add http:// if not present
-        if not minio_endpoint.startswith("http"):
-            minio_endpoint = f"http://{minio_endpoint}"
-
-        _storage_manager = S3StorageManager(
-            bucket_name=settings.minio_bucket_name,
-            endpoint_url=minio_endpoint,
-            access_key=settings.minio_access_key,
-            secret_key=settings.minio_secret_key,
-            use_ssl=settings.minio_use_ssl,
-        )
-    return _storage_manager
+def get_storage_manager(request: Request) -> S3StorageManager:
+    """Get storage manager from app state."""
+    return request.app.state.storage_manager
 
 
 async def get_arq_pool(settings: Settings = Depends(get_settings)):
@@ -266,18 +250,15 @@ async def _enqueue_job_internal(
         content = await file.read()
         logger.info(f"Read {len(content)} bytes from uploaded file")
 
-        # Upload to MinIO
+        # Upload to MinIO and get object key
         audio_key = await storage.save_file(content, file.filename, subfolder="transcriptions")
         logger.info(f"Uploaded audio to MinIO: {audio_key}")
 
-        # Generate presigned URL for audio access (1 hour expiration)
-        audio_url = storage.generate_presigned_url(audio_key, expiration=3600)
-
-        # Create transcript record in database
+        # Create transcript record in database with object key
         transcript_repo = TranscriptRepository(db)
         transcript = await transcript_repo.create(
             filename=file.filename,
-            audio_url=audio_url,
+            audio_key=audio_key,
             language=language,
             session_id=session_uuid,
         )
@@ -478,7 +459,12 @@ async def stream_job_status(
 
 
 @router.get("/result/{job_id}")
-async def get_job_result(job_id: str, db: AsyncSession = Depends(get_db)):
+async def get_job_result(
+    job_id: str,
+    db: AsyncSession = Depends(get_db),
+    storage: S3StorageManager = Depends(get_storage_manager),
+    settings: Settings = Depends(get_settings),
+):
     """
     Get completed transcription result.
 
@@ -486,7 +472,7 @@ async def get_job_result(job_id: str, db: AsyncSession = Depends(get_db)):
         job_id: Job identifier
 
     Returns:
-        Transcript data
+        Transcript data with fresh presigned URL
     """
     try:
         # Get job from database
@@ -512,12 +498,15 @@ async def get_job_result(job_id: str, db: AsyncSession = Depends(get_db)):
                 detail=f"Transcription failed: {transcript.error_message}",
             )
 
+        # Generate fresh presigned URL from stored object key
+        audio_url = storage.generate_presigned_url(transcript.audio_key, expiration=3600)
+
         return {
             "job_id": job_id,
             "transcript_id": str(transcript.id),
             "status": transcript.status,
             "filename": transcript.filename,
-            "audio_url": transcript.audio_url,
+            "audio_url": audio_url,
             "language": transcript.language,
             "duration": transcript.duration,
             "segments": transcript.segments,

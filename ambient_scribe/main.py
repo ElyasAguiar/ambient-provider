@@ -13,6 +13,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 from ambient_scribe.database import close_db, init_db
+from ambient_scribe.deps import Settings, get_settings
 from ambient_scribe.routers import (
     auth,
     contexts,
@@ -23,6 +24,7 @@ from ambient_scribe.routers import (
     transcribe_jobs,
     workspaces,
 )
+from ambient_scribe.services.storage import S3StorageManager
 
 
 @asynccontextmanager
@@ -30,6 +32,21 @@ async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown events."""
     # Startup
     await init_db()
+    
+    # Initialize S3/MinIO storage manager
+    settings = get_settings()
+    minio_endpoint = settings.minio_endpoint
+    if not minio_endpoint.startswith("http"):
+        minio_endpoint = f"http://{minio_endpoint}"
+    
+    app.state.storage_manager = S3StorageManager(
+        bucket_name=settings.minio_bucket_name,
+        endpoint_url=minio_endpoint,
+        access_key=settings.minio_access_key,
+        secret_key=settings.minio_secret_key,
+        use_ssl=settings.minio_use_ssl,
+    )
+    
     yield
     # Shutdown
     await close_db()

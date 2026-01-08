@@ -25,7 +25,7 @@ class Transcript(Base):
         nullable=True,
     )
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
-    audio_url: Mapped[str] = mapped_column(String(500), nullable=False)
+    audio_key: Mapped[str] = mapped_column(String(500), nullable=False)
     language: Mapped[str] = mapped_column(String(10), default="en-US", nullable=False)
     duration: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     segments: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
