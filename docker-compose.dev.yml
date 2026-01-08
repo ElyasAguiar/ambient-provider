@@ -14,18 +14,18 @@ services:
     environment:
       - DEBUG=true
       - NVIDIA_API_KEY=${NVIDIA_API_KEY}
-      - STORAGE_BACKEND=local
+      - STORAGE_BACKEND=${STORAGE_BACKEND:-local}
       - UPLOAD_DIR=/app/uploads
       - TEMPLATES_DIR=/app/templates
       - NUMBA_CACHE_DIR=/tmp/numba_cache
       - NUMBA_DISABLE_CACHING=1
-      - DATABASE_URL=postgresql+asyncpg://scribehub:scribehub@postgres:5432/scribehub
-      - REDIS_URL=redis://redis:6379/0
-      - MINIO_ENDPOINT=minio.ambient-provider.orb.local
-      - MINIO_ACCESS_KEY=minioadmin
-      - MINIO_SECRET_KEY=minioadmin
-      - MINIO_BUCKET_NAME=transcriptions
-      - MINIO_USE_SSL=false
+      - DATABASE_URL=${DATABASE_URL:-postgresql+asyncpg://scribehub:scribehub@postgres:5432/scribehub}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT:-minio.ambient-provider.orb.local}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
+      - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME:-transcriptions}
+      - MINIO_USE_SSL=${MINIO_USE_SSL:-false}
     volumes:
       - .:/app:delegated
       - .env:/app/.env:delegated

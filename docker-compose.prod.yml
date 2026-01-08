@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   api:
@@ -12,13 +12,19 @@ services:
       - .env
     environment:
       - DEBUG=false
+      - NVIDIA_API_KEY=${NVIDIA_API_KEY}
       - STORAGE_BACKEND=${STORAGE_BACKEND:-local}
       - UPLOAD_DIR=/app/uploads
       - TEMPLATES_DIR=/app/templates
-      - MAX_CONCURRENT_TRANSCRIPTIONS=1
       - NUMBA_CACHE_DIR=/tmp/numba_cache
       - NUMBA_DISABLE_CACHING=1
-      - DATABASE_URL=postgresql+asyncpg://scribehub:scribehub@postgres:5432/scribehub
+      - DATABASE_URL=${DATABASE_URL:-postgresql+asyncpg://scribehub:scribehub@postgres:5432/scribehub}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT:-minio.ambient-provider.orb.local}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
+      - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME:-transcriptions}
+      - MINIO_USE_SSL=${MINIO_USE_SSL:-false}
     volumes:
       - api_uploads:/app/uploads
       - api_logs:/app/logs
@@ -81,87 +87,120 @@ services:
       options:
         max-size: "5m"
         max-file: "3"
-
-  # NVIDIA Parakeet NIM for local ASR (modelo de transcrição)
-  parakeet-nim:
-    image: nvcr.io/nim/nvidia/parakeet-1-1b-ctc-en-us:latest
-    container_name: parakeet-nim
-    restart: unless-stopped
-    runtime: nvidia
-    environment:
-      - NGC_API_KEY=${NGC_API_KEY}
-      - NIM_HTTP_API_PORT=9000
-      - NIM_GRPC_API_PORT=50051
-      - NIM_TAGS_SELECTOR=name=parakeet-1-1b-ctc-en-us,mode=streaming,vad=silero,diarizer=sortformer
+  redis:
+    image: redis:7-alpine
+    container_name: ambient-scribe-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - ambient-network
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  minio:
+    image: minio/minio:latest
+    container_name: ambient-scribe-minio
     ports:
       - "9000:9000"
-      - "50051:50051"
-    shm_size: 6gb
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
     volumes:
-      - parakeet_cache:/opt/nim/.cache
-    deploy:
-      resources:
-        limits:
-          memory: 22G
-        reservations:
-          memory: 12G
-          devices:
-            - driver: nvidia
-              device_ids: ["0"]
-              capabilities: [gpu]
+      - minio_data:/data
     networks:
       - ambient-network
+    command: server /data --console-address ":9001"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/v1/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 30s
       timeout: 10s
-      retries: 5
-      start_period: 300s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+      retries: 3
+  # # NVIDIA Parakeet NIM for local ASR (modelo de transcrição)
+  # parakeet-nim:
+  #   image: nvcr.io/nim/nvidia/parakeet-1-1b-ctc-en-us:latest
+  #   container_name: parakeet-nim
+  #   restart: unless-stopped
+  #   runtime: nvidia
+  #   environment:
+  #     - NGC_API_KEY=${NGC_API_KEY}
+  #     - NIM_HTTP_API_PORT=9000
+  #     - NIM_GRPC_API_PORT=50051
+  #     - NIM_TAGS_SELECTOR=name=parakeet-1-1b-ctc-en-us,mode=streaming,vad=silero,diarizer=sortformer
+  #   ports:
+  #     - "9000:9000"
+  #     - "50051:50051"
+  #   shm_size: 6gb
+  #   volumes:
+  #     - parakeet_cache:/opt/nim/.cache
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 22G
+  #       reservations:
+  #         memory: 12G
+  #         devices:
+  #           - driver: nvidia
+  #             device_ids: ["0"]
+  #             capabilities: [gpu]
+  #   networks:
+  #     - ambient-network
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:9000/v1/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 5
+  #     start_period: 300s
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "10m"
+  #       max-file: "3"
 
-  # NVIDIA LLM NIM for Llama-3.3-Nemotron-Super-49B
-  llama-nim:
-    image: nvcr.io/nim/nvidia/llama-3.3-nemotron-super-49b-v1:latest
-    container_name: llama-nim
-    restart: unless-stopped
-    runtime: nvidia
-    ports:
-      - "8001:8000"
-    shm_size: 16gb
-    volumes:
-      - llama_cache:/opt/nim/.cache
-    environment:
-      - NIM_CACHE_PATH=/opt/nim/.cache
-      - NGC_API_KEY=${NGC_API_KEY}
-      - NVIDIA_VISIBLE_DEVICES=all
-      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
-    deploy:
-      resources:
-        limits:
-          memory: 48G
-        reservations:
-          memory: 24G
-          devices:
-            - driver: nvidia
-              device_ids: ["all"]
-              capabilities: [gpu]
-    networks:
-      - ambient-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/v1/health"]
-      interval: 60s
-      timeout: 30s
-      retries: 10
-      start_period: 1800s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+  # # NVIDIA LLM NIM for Llama-3.3-Nemotron-Super-49B
+  # llama-nim:
+  #   image: nvcr.io/nim/nvidia/llama-3.3-nemotron-super-49b-v1:latest
+  #   container_name: llama-nim
+  #   restart: unless-stopped
+  #   runtime: nvidia
+  #   ports:
+  #     - "8001:8000"
+  #   shm_size: 16gb
+  #   volumes:
+  #     - llama_cache:/opt/nim/.cache
+  #   environment:
+  #     - NIM_CACHE_PATH=/opt/nim/.cache
+  #     - NGC_API_KEY=${NGC_API_KEY}
+  #     - NVIDIA_VISIBLE_DEVICES=all
+  #     - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 48G
+  #       reservations:
+  #         memory: 24G
+  #         devices:
+  #           - driver: nvidia
+  #             device_ids: ["all"]
+  #             capabilities: [gpu]
+  #   networks:
+  #     - ambient-network
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:8000/v1/health"]
+  #     interval: 60s
+  #     timeout: 30s
+  #     retries: 10
+  #     start_period: 1800s
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "10m"
+  #       max-file: "3"
 
 networks:
   ambient-network:
