@@ -70,17 +70,20 @@ class TranscriptRepository:
 
     async def get_by_session(self, session_id: UUID) -> List[db_models.Transcript]:
         """
-        Get all transcripts for a session.
+        Get all completed transcripts for a session.
 
         Args:
             session_id: Session UUID
 
         Returns:
-            List of Transcript instances
+            List of completed Transcript instances
         """
         result = await self.db.execute(
             select(db_models.Transcript)
-            .where(db_models.Transcript.session_id == session_id)
+            .where(
+                db_models.Transcript.session_id == session_id,
+                db_models.Transcript.status == "completed"
+            )
             .order_by(db_models.Transcript.created_at.desc())
         )
         return list(result.scalars().all())
@@ -161,17 +164,18 @@ class TranscriptRepository:
 
     async def list_all(self, limit: int = 100, offset: int = 0) -> List[db_models.Transcript]:
         """
-        List all transcripts with pagination.
+        List all completed transcripts with pagination.
 
         Args:
             limit: Maximum number of results
             offset: Number of results to skip
 
         Returns:
-            List of Transcript instances
+            List of completed Transcript instances
         """
         result = await self.db.execute(
             select(db_models.Transcript)
+            .where(db_models.Transcript.status == "completed")
             .order_by(db_models.Transcript.created_at.desc())
             .limit(limit)
             .offset(offset)

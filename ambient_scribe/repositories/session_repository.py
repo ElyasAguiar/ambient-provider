@@ -45,6 +45,7 @@ class SessionRepository:
             .options(
                 selectinload(db_models.Session.transcripts),
                 selectinload(db_models.Session.context),
+                selectinload(db_models.Session.workspace),
             )
             .where(db_models.Session.id == session_id)
         )

@@ -189,6 +189,44 @@ async def list_workspace_sessions(
     ]
 
 
+@router.get("/{workspace_id}/sessions/{session_id}", response_model=SessionResponse)
+async def get_session(
+    workspace_id: UUID,
+    session_id: UUID,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get a specific session in a workspace."""
+    workspace_repo = WorkspaceRepository(db)
+    workspace = await workspace_repo.get_by_id(workspace_id)
+
+    if not workspace or workspace.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Workspace not found",
+        )
+
+    session_repo = SessionRepository(db)
+    session = await session_repo.get_by_id(session_id)
+
+    if not session or session.workspace_id != workspace_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found",
+        )
+
+    return SessionResponse(
+        id=str(session.id),
+        workspace_id=str(session.workspace_id),
+        context_id=str(session.context_id) if session.context_id else None,
+        name=session.name,
+        status=session.status,
+        session_metadata=session.session_metadata,
+        created_at=session.created_at.isoformat(),
+        updated_at=session.updated_at.isoformat(),
+    )
+
+
 @router.post(
     "/{workspace_id}/sessions",
     response_model=SessionResponse,
