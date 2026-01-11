@@ -82,7 +82,7 @@ class TranscriptRepository:
             select(db_models.Transcript)
             .where(
                 db_models.Transcript.session_id == session_id,
-                db_models.Transcript.status == "completed"
+                db_models.Transcript.status == "completed",
             )
             .order_by(db_models.Transcript.created_at.desc())
         )

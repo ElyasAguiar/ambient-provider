@@ -32,13 +32,13 @@ async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown events."""
     # Startup
     await init_db()
-    
+
     # Initialize S3/MinIO storage manager
     settings = get_settings()
     minio_endpoint = settings.minio_endpoint
     if not minio_endpoint.startswith("http"):
         minio_endpoint = f"http://{minio_endpoint}"
-    
+
     app.state.storage_manager = S3StorageManager(
         bucket_name=settings.minio_bucket_name,
         endpoint_url=minio_endpoint,
@@ -46,7 +46,7 @@ async def lifespan(app: FastAPI):
         secret_key=settings.minio_secret_key,
         use_ssl=settings.minio_use_ssl,
     )
-    
+
     yield
     # Shutdown
     await close_db()
