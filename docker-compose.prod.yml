@@ -101,8 +101,6 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
-    deploy:
-      replicas: 2
 
   postgres:
     image: postgres:16-alpine
