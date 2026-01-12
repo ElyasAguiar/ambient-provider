@@ -81,10 +81,11 @@ services:
       - DATABASE_URL=postgresql+asyncpg://scribehub:scribehub@postgres:5432/scribehub
       - REDIS_URL=redis://redis:6379/0
       - MINIO_ENDPOINT=minio:9000
-      - MINIO_ACCESS_KEY=minioadmin
-      - MINIO_SECRET_KEY=minioadmin
-      - MINIO_BUCKET_NAME=transcriptions
-      - MINIO_USE_SSL=false
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT:-minio.ambient-provider.orb.local}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
+      - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME:-transcriptions}
+      - MINIO_USE_SSL=${MINIO_USE_SSL:-false}
       - TEMPLATES_DIR=/app/templates
       - NUMBA_CACHE_DIR=/tmp/numba_cache
       - NUMBA_DISABLE_CACHING=1
