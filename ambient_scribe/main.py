@@ -37,7 +37,7 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     minio_endpoint = settings.minio_endpoint
     if not minio_endpoint.startswith("http"):
-        minio_endpoint = f"http://{minio_endpoint}"
+        minio_endpoint = f"https://{minio_endpoint}"
 
     app.state.storage_manager = S3StorageManager(
         bucket_name=settings.minio_bucket_name,

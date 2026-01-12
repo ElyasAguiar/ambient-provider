@@ -46,7 +46,7 @@ def get_storage_manager() -> S3StorageManager:
     if _storage_manager is None:
         _storage_manager = S3StorageManager(
             bucket_name=settings.minio_bucket_name,
-            endpoint_url=f"http://{settings.minio_endpoint}",
+            endpoint_url=f"https://{settings.minio_endpoint}",
             access_key=settings.minio_access_key,
             secret_key=settings.minio_secret_key,
             use_ssl=settings.minio_use_ssl,
