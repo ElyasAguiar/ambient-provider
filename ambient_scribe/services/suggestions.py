@@ -13,7 +13,7 @@ except ImportError:
     HAS_OPENAI = False
 
 from ambient_scribe.deps import Settings
-from ambient_scribe.models import Transcript
+from ambient_scribe.models.api.transcripts_schema import Transcript
 
 # Medical terminology and common phrases for autocomplete
 MEDICAL_TERMS = {
@@ -336,9 +336,7 @@ def _get_transcript_based_suggestions(
     return suggestions[:max_suggestions]
 
 
-def _get_context_based_suggestions(
-    prefix: str, context: str, max_suggestions: int
-) -> List[str]:
+def _get_context_based_suggestions(prefix: str, context: str, max_suggestions: int) -> List[str]:
     """Get suggestions based on surrounding context."""
     suggestions = []
 
@@ -373,9 +371,7 @@ async def _get_ai_powered_suggestions(
     if not HAS_OPENAI:
         return []
 
-    client = AsyncOpenAI(
-        api_key=settings.nvidia_api_key, base_url=settings.openai_base_url
-    )
+    client = AsyncOpenAI(api_key=settings.nvidia_api_key, base_url=settings.openai_base_url)
 
     # Build prompt for AI suggestions
     prompt_parts = [
@@ -386,9 +382,7 @@ async def _get_ai_powered_suggestions(
     ]
 
     if context:
-        prompt_parts.insert(
-            1, f"Context: {context[-200:]}"
-        )  # Last 200 chars of context
+        prompt_parts.insert(1, f"Context: {context[-200:]}")  # Last 200 chars of context
 
     if transcript:
         # Include relevant transcript excerpts

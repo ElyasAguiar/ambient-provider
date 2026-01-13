@@ -6,63 +6,83 @@ import asyncio
 import json
 from datetime import datetime
 from typing import List
+from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import StreamingResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from ambient_scribe.database import get_db
 from ambient_scribe.deps import get_settings
-from ambient_scribe.models import (
-    ErrorResponse,
+from ambient_scribe.models.api.common_schema import ErrorResponse
+from ambient_scribe.models.api.notes_schema import (
     NoteRequest,
     NoteResponse,
     SuggestionResponse,
 )
-from ambient_scribe.routers.transcribe import _transcripts
+from ambient_scribe.models.api.transcripts_schema import Transcript
+from ambient_scribe.repositories.transcript_repository import TranscriptRepository
 from ambient_scribe.services.llm import generate_note_service
 from ambient_scribe.services.suggestions import get_autocomplete_suggestions
 
-router = APIRouter()
+router = APIRouter(prefix="/api/notes", tags=["notes"])
 
 # In-memory storage for demo
 _notes = {}
 
 
 @router.get("/debug/transcripts")
-async def debug_transcripts():
+async def debug_transcripts(db: AsyncSession = Depends(get_db)):
     """Debug endpoint to see all available transcripts."""
+    transcript_repo = TranscriptRepository(db)
+    # Note: This is a debug endpoint - in production you'd want pagination
+    result = await db.execute("SELECT id, filename, status FROM transcripts LIMIT 100")
+    transcripts = result.fetchall()
     return {
-        "total_transcripts": len(_transcripts),
-        "transcript_ids": list(_transcripts.keys()),
-        "transcripts": {
-            tid: {"filename": t.filename, "segments": len(t.segments)}
-            for tid, t in _transcripts.items()
-        },
+        "total_transcripts": len(transcripts),
+        "transcripts": [{"id": str(t[0]), "filename": t[1], "status": t[2]} for t in transcripts],
     }
 
 
 @router.post("/stream")
-async def stream_note_endpoint(note_request: NoteRequest):
+async def stream_note_endpoint(note_request: NoteRequest, db: AsyncSession = Depends(get_db)):
     """Stream note generation with real-time traces and speaker-aware formatting."""
 
     print(
         f"POST /stream - Received request: transcript_id={note_request.transcript_id}, template={note_request.template_name}"
     )
-    print(f"Available transcripts: {list(_transcripts.keys())}")
-    print(f"Total transcripts in memory: {len(_transcripts)}")
 
-    if note_request.transcript_id not in _transcripts:
-        print(f"Transcript {note_request.transcript_id} not found in _transcripts")
-        print("This suggests either:")
-        print("1. Transcription is still in progress")
-        print("2. Transcription failed")
-        print("3. Server was restarted (in-memory storage lost)")
+    # Fetch transcript from database
+    try:
+        transcript_uuid = UUID(note_request.transcript_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid transcript_id format")
+
+    transcript_repo = TranscriptRepository(db)
+    transcript_db = await transcript_repo.get_by_id(transcript_uuid)
+
+    if not transcript_db:
+        print(f"Transcript {note_request.transcript_id} not found in database")
         raise HTTPException(
             status_code=404,
             detail="Transcript not found. Please ensure transcription completed successfully.",
         )
 
+    # Convert DB model to Transcript response model
+    transcript = Transcript(
+        id=str(transcript_db.id),
+        filename=transcript_db.filename,
+        audio_url=transcript_db.audio_url,
+        language=transcript_db.language,
+        duration=transcript_db.duration,
+        segments=transcript_db.segments,
+        speaker_roles=transcript_db.speaker_roles,
+        status=transcript_db.status,
+        error_message=transcript_db.error_message,
+        created_at=transcript_db.created_at,
+    )
+
     async def note_generation_handler():
-        transcript = _transcripts[note_request.transcript_id]
         settings = get_settings()
 
         print(f"Starting note generation for transcript {note_request.transcript_id}")
@@ -186,12 +206,31 @@ async def get_suggestions(
     transcript_id: str = None,
     context: str = None,
     settings=Depends(get_settings),
+    db: AsyncSession = Depends(get_db),
 ) -> SuggestionResponse:
     """Get autocomplete suggestions for the given prefix."""
 
     transcript = None
-    if transcript_id and transcript_id in _transcripts:
-        transcript = _transcripts[transcript_id]
+    if transcript_id:
+        try:
+            transcript_uuid = UUID(transcript_id)
+            transcript_repo = TranscriptRepository(db)
+            transcript_db = await transcript_repo.get_by_id(transcript_uuid)
+            if transcript_db:
+                transcript = Transcript(
+                    id=str(transcript_db.id),
+                    filename=transcript_db.filename,
+                    audio_url=transcript_db.audio_url,
+                    language=transcript_db.language,
+                    duration=transcript_db.duration,
+                    segments=transcript_db.segments,
+                    speaker_roles=transcript_db.speaker_roles,
+                    status=transcript_db.status,
+                    error_message=transcript_db.error_message,
+                    created_at=transcript_db.created_at,
+                )
+        except ValueError:
+            pass  # Invalid UUID format, continue without transcript
 
     try:
         suggestions = await get_autocomplete_suggestions(
@@ -201,9 +240,7 @@ async def get_suggestions(
         return SuggestionResponse(suggestions=suggestions, context=context)
 
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to get suggestions: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to get suggestions: {str(e)}")
 
 
 @router.get("/{note_id}", response_model=NoteResponse)

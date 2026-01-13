@@ -22,9 +22,7 @@ class Transcript(BaseModel):
     """Complete transcript with metadata."""
 
     id: str = Field(..., description="Unique transcript identifier")
-    segments: List[TranscriptSegment] = Field(
-        ..., description="List of transcript segments"
-    )
+    segments: List[TranscriptSegment] = Field(..., description="List of transcript segments")
     language: str = Field(default="en-US", description="Language code")
     duration: Optional[float] = Field(None, description="Total duration in seconds")
     created_at: datetime = Field(default_factory=datetime.now)
@@ -33,6 +31,8 @@ class Transcript(BaseModel):
     speaker_roles: Optional[Dict[int, str]] = Field(
         None, description="Mapping of speaker_tag to role (patient/provider)"
     )
+    status: str = Field(default="processing", description="Transcript status")
+    error_message: Optional[str] = Field(None, description="Error message if failed")
 
 
 class NoteRequest(BaseModel):
@@ -40,15 +40,11 @@ class NoteRequest(BaseModel):
 
     transcript_id: str = Field(..., description="ID of the transcript to use")
     template_name: str = Field(..., description="Template to use for note generation")
-    custom_sections: Optional[List[str]] = Field(
-        None, description="Custom sections to include"
-    )
+    custom_sections: Optional[List[str]] = Field(None, description="Custom sections to include")
     system_instructions: Optional[str] = Field(
         None, description="Additional instructions for the LLM"
     )
-    include_traces: bool = Field(
-        default=True, description="Whether to include reasoning traces"
-    )
+    include_traces: bool = Field(default=True, description="Whether to include reasoning traces")
 
 
 class Citation(BaseModel):
@@ -57,9 +53,7 @@ class Citation(BaseModel):
     text: str = Field(..., description="Cited text")
     start_time: float = Field(..., description="Start time in transcript")
     end_time: float = Field(..., description="End time in transcript")
-    segment_id: Optional[str] = Field(
-        None, description="Reference to transcript segment"
-    )
+    segment_id: Optional[str] = Field(None, description="Reference to transcript segment")
 
 
 class TraceEvent(BaseModel):
@@ -76,12 +70,8 @@ class NoteResponse(BaseModel):
 
     id: Optional[str] = Field(None, description="Unique identifier for the note")
     note_markdown: str = Field(..., description="Generated note in markdown format")
-    trace_events: List[TraceEvent] = Field(
-        default_factory=list, description="Reasoning traces"
-    )
-    citations: List[Citation] = Field(
-        default_factory=list, description="Citations to transcript"
-    )
+    trace_events: List[TraceEvent] = Field(default_factory=list, description="Reasoning traces")
+    citations: List[Citation] = Field(default_factory=list, description="Citations to transcript")
     template_used: str = Field(..., description="Template that was used")
     generation_time: float = Field(..., description="Time taken to generate note")
     created_at: datetime = Field(default_factory=datetime.now)
@@ -103,9 +93,7 @@ class TemplateInfo(BaseModel):
     display_name: str = Field(..., description="Human-readable template name")
     description: str = Field(..., description="Template description")
     sections: List[str] = Field(..., description="Available sections")
-    is_custom: bool = Field(
-        default=False, description="Whether this is a custom template"
-    )
+    is_custom: bool = Field(default=False, description="Whether this is a custom template")
 
 
 class TemplateRequest(BaseModel):

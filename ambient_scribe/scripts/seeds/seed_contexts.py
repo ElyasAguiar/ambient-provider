@@ -24,8 +24,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ambient_scribe.auth import get_password_hash
 from ambient_scribe.database import AsyncSessionLocal, init_db
-from ambient_scribe.db_models import Context, Template, User
-
+from ambient_scribe.models.database.contexts_model import Context
+from ambient_scribe.models.database.templates_model import Template
+from ambient_scribe.models.database.users_model import User
 
 # Medical context configuration
 MEDICAL_CONTEXT = {
