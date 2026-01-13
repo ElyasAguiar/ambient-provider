@@ -42,26 +42,13 @@ services:
     networks:
       - ambient-network
     depends_on:
-      postgres:
-        condition: service_healthy
+      - postgres
     deploy:
       resources:
         limits:
           memory: 1.5G
         reservations:
           memory: 512M
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "python",
-          "-c",
-          "import requests; requests.get('http://localhost:8000/api/health/', timeout=5)",
-        ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
     logging:
       driver: "json-file"
       options:
@@ -96,10 +83,8 @@ services:
     networks:
       - ambient-network
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      - postgres
+      - redis
     deploy:
       resources:
         limits:
@@ -131,11 +116,6 @@ services:
           memory: 512M
         reservations:
           memory: 256M
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U scribehub"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
     logging:
       driver: "json-file"
       options:
@@ -151,11 +131,6 @@ services:
     networks:
       - ambient-network
     command: redis-server --appendonly yes
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
   # # NVIDIA Parakeet NIM for local ASR (modelo de transcrição)
   # parakeet-nim:
   #   image: nvcr.io/nim/nvidia/parakeet-1-1b-ctc-en-us:latest
