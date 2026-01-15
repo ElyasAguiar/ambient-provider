@@ -49,18 +49,6 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "python",
-          "-c",
-          "import requests; requests.get('http://localhost:8000/api/health/', timeout=5)",
-        ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
 
   worker:
     build:
