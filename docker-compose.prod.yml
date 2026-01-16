@@ -6,6 +6,8 @@ services:
     restart: unless-stopped
     ports:
       - "8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     env_file:
       - .env
     environment:
@@ -43,6 +45,8 @@ services:
       - ambient-network
     depends_on:
       - postgres
+      - redis
+      - minio
     deploy:
       resources:
         limits:
@@ -79,13 +83,19 @@ services:
     volumes:
       - .:/app:delegated
       - .env:/app/.env:delegated
-    command: ["arq", "ambient_scribe.workers.transcription.WorkerSettings"]
+    command:
+      [
+        "arq",
+        "ambient_scribe.workers.transcription.WorkerSettings",
+      ]
     networks:
       - ambient-network
     depends_on:
       - postgres
       - redis
+      - minio
     deploy:
+      replicas: 2
       resources:
         limits:
           memory: 1G
@@ -96,6 +106,58 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+  # FastStream consumer for processing transcription results
+  stream-consumer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    env_file:
+      - .env
+    environment:
+      - DEBUG=false
+      - DATABASE_URL=postgresql+asyncpg://scribehub:scribehub@postgres:5432/scribehub
+      - REDIS_URL=redis://redis:6379/0
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT:-minio.ambient-provider.orb.local}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
+      - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME:-transcriptions}
+      - MINIO_USE_SSL=${MINIO_USE_SSL:-false}
+      - TRANSCRIPTION_JOBS_STREAM=transcription-jobs
+      - TRANSCRIPTION_RESULTS_STREAM=transcription-results
+      - TRANSCRIPTION_DLQ_STREAM=transcription-jobs-dlq
+    volumes:
+      - .:/app:delegated
+      - .env:/app/.env:delegated
+    command:
+      [
+        "faststream",
+        "run",
+        "ambient_scribe.consumers.result_consumer:broker",
+        "--workers",
+        "2",
+      ]
+    networks:
+      - ambient-network
+    depends_on:
+      - postgres
+      - redis
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   postgres:
     image: postgres:16-alpine
     container_name: ambient-scribe-postgres
@@ -124,6 +186,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: ambient-scribe-redis
+    restart: unless-stopped
     ports:
       - "6379:6379"
     volumes:
@@ -131,6 +194,39 @@ services:
     networks:
       - ambient-network
     command: redis-server --appendonly yes
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  minio:
+    image: minio/minio:latest
+    container_name: ambient-scribe-minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
+    volumes:
+      - minio_data:/data
+    networks:
+      - ambient-network
+    command: server /data --console-address ":9001"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+
   # # NVIDIA Parakeet NIM for local ASR (modelo de transcrição)
   # parakeet-nim:
   #   image: nvcr.io/nim/nvidia/parakeet-1-1b-ctc-en-us:latest
@@ -222,6 +318,10 @@ volumes:
   api_logs:
     driver: local
   postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  minio_data:
     driver: local
   parakeet_cache:
     driver: local

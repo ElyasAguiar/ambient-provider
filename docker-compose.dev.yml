@@ -43,24 +43,9 @@ services:
     networks:
       - ambient-network
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "python",
-          "-c",
-          "import requests; requests.get('http://localhost:8000/api/health/', timeout=5)",
-        ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
+      - postgres
+      - redis
+      - minio
 
   worker:
     build:
@@ -94,14 +79,51 @@ services:
     networks:
       - ambient-network
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
+      - postgres
+      - redis
+      - minio
     deploy:
       replicas: 2
+
+  # FastStream consumer for processing transcription results
+  stream-consumer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    env_file:
+      - .env
+    environment:
+      - DEBUG=true
+      - DATABASE_URL=postgresql+asyncpg://scribehub:scribehub@postgres:5432/scribehub
+      - REDIS_URL=redis://redis:6379/0
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+      - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME}
+      - MINIO_USE_SSL=${MINIO_USE_SSL}
+      - TRANSCRIPTION_JOBS_STREAM=transcription-jobs
+      - TRANSCRIPTION_RESULTS_STREAM=transcription-results
+      - TRANSCRIPTION_DLQ_STREAM=transcription-jobs-dlq
+    volumes:
+      - .:/app:delegated
+      - .env:/app/.env:delegated
+    command:
+      [
+        "faststream",
+        "run",
+        "ambient_scribe.consumers.result_consumer:broker",
+        "--workers",
+        "2",
+      ]
+    networks:
+      - ambient-network
+    depends_on:
+      - postgres
+      - redis
+    deploy:
+      replicas: 1
 
   postgres:
     image: postgres:16-alpine
@@ -116,11 +138,6 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - ambient-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U scribehub"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
   redis:
     image: redis:7-alpine
@@ -132,11 +149,6 @@ services:
     networks:
       - ambient-network
     command: redis-server --appendonly yes
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
   minio:
     image: minio/minio:latest
@@ -152,11 +164,6 @@ services:
     networks:
       - ambient-network
     command: server /data --console-address ":9001"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
   # NVIDIA Parakeet NIM for local ASR (modelo de transcrição)
   # parakeet-nim:
