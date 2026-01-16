@@ -136,7 +136,7 @@ services:
       [
         "faststream",
         "run",
-        "ambient_scribe.consumers.result_consumer:broker",
+        "ambient_scribe.stream_broker:app",
         "--workers",
         "2",
       ]

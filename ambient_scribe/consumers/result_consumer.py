@@ -9,8 +9,7 @@ from uuid import UUID
 
 from faststream import Logger
 from faststream.redis.annotations import ContextRepo, Redis
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
 from ambient_scribe.deps import get_settings
 from ambient_scribe.models.api.stream_messages import TranscriptionResultMessage
@@ -30,14 +29,16 @@ engine = create_async_engine(
     echo=settings.database_echo,
     pool_pre_ping=True,
 )
-async_session_maker = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-
-
-@broker.subscriber(
-    stream=settings.transcription_results_stream,
-    group="ambient-results-group",
-    consumer="ambient-results-consumer",
+async_session_maker = async_sessionmaker(
+    engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+    autocommit=False,
+    autoflush=False,
 )
+
+
+@broker.subscriber(stream=settings.transcription_results_stream)
 async def process_transcription_result(
     msg: Dict,
     logger: Logger,

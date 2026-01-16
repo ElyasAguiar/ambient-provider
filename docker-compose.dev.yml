@@ -98,14 +98,14 @@ services:
       - DEBUG=true
       - DATABASE_URL=postgresql+asyncpg://scribehub:scribehub@postgres:5432/scribehub
       - REDIS_URL=redis://redis:6379/0
-      - MINIO_ENDPOINT=${MINIO_ENDPOINT}
-      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
-      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
-      - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME}
-      - MINIO_USE_SSL=${MINIO_USE_SSL}
-      - TRANSCRIPTION_JOBS_STREAM=transcription-jobs
-      - TRANSCRIPTION_RESULTS_STREAM=transcription-results
-      - TRANSCRIPTION_DLQ_STREAM=transcription-jobs-dlq
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT:-minio:9000}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
+      - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME:-transcriptions}
+      - MINIO_USE_SSL=${MINIO_USE_SSL:-false}
+      - TRANSCRIPTION_JOBS_STREAM=${TRANSCRIPTION_JOBS_STREAM:-transcription-jobs}
+      - TRANSCRIPTION_RESULTS_STREAM=${TRANSCRIPTION_RESULTS_STREAM:-transcription-results}
+      - TRANSCRIPTION_DLQ_STREAM=${TRANSCRIPTION_DLQ_STREAM:-transcription-jobs-dlq}
     volumes:
       - .:/app:delegated
       - .env:/app/.env:delegated
@@ -113,7 +113,7 @@ services:
       [
         "faststream",
         "run",
-        "ambient_scribe.consumers.result_consumer:broker",
+        "ambient_scribe.stream_broker:app",
         "--workers",
         "2",
       ]

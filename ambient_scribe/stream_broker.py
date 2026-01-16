@@ -1,7 +1,5 @@
-# SPDX-FileCopyrightText: Copyright (c) 2024-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-# SPDX-License-Identifier: Apache-2.0
-
 """FastStream broker configuration for Redis Streams."""
+
 import logging
 
 from faststream import FastStream
@@ -15,22 +13,13 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 
 # Initialize Redis broker with streams configuration
-broker = RedisBroker(
-    url=settings.redis_url,
-    # Enable graceful shutdown
-    graceful_timeout=30.0,
-    # Connection pool settings
-    max_connections=50,
-    decode_responses=False,  # We handle encoding/decoding via Pydantic
-)
+broker = RedisBroker(settings.redis_url)
 
 # Initialize FastStream app
-app = FastStream(
-    broker,
-    title="Ambient Scribe Transcription Streams",
-    description="FastStream application for managing transcription jobs and results",
-    version="1.0.0",
-)
+app = FastStream(broker)
+
+# Import consumers to register handlers
+from ambient_scribe.consumers import result_consumer  # noqa: E402,F401
 
 
 @app.on_startup
