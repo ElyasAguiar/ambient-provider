@@ -124,14 +124,14 @@ async def process_transcription_result(
         redis_client = await get_redis_client(settings.redis_url)
         job_manager = RedisJobManager(redis_client, default_ttl=settings.redis_job_ttl)
 
-        await job_manager.update_status(
+        await job_manager.update_job_status(
             result.job_id,
             status=result.status,
             progress=100 if result.status == "completed" else 0,
         )
 
         if result.status == "completed":
-            await job_manager.set_result(
+            await job_manager.set_job_result(
                 result.job_id,
                 {
                     "transcript_id": result.transcript_id,
