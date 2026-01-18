@@ -81,6 +81,13 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     redis_job_ttl: int = 3600  # 1 hour TTL for job status in Redis
 
+    # FastStream Configuration
+    transcription_jobs_stream: str = "transcription-jobs"
+    transcription_results_stream: str = "transcription-results"
+    transcription_dlq_stream: str = "transcription-jobs-dlq"
+    stream_max_retries: int = 3
+    stream_retry_delay: int = 60  # seconds
+
     # MinIO/S3 Configuration
     minio_endpoint: str = "localhost:9000"
     minio_access_key: str = "minioadmin"
