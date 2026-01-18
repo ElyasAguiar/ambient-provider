@@ -133,7 +133,6 @@ services:
       - ambient-network
     depends_on:
       - postgres
-      - redis
     deploy:
       resources:
         limits:
