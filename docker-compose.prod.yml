@@ -25,9 +25,6 @@ services:
       - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
       - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME:-transcriptions}
       - MINIO_USE_SSL=${MINIO_USE_SSL:-false}
-    volumes:
-      - .:/app:delegated
-      - .env:/app/.env:delegated
     command:
       [
         "uvicorn",
@@ -78,9 +75,6 @@ services:
       - TEMPLATES_DIR=/app/templates
       - NUMBA_CACHE_DIR=/tmp/numba_cache
       - NUMBA_DISABLE_CACHING=1
-    volumes:
-      - .:/app:delegated
-      - .env:/app/.env:delegated
     command: ["arq", "ambient_scribe.workers.transcription.WorkerSettings"]
     networks:
       - ambient-network
@@ -118,9 +112,6 @@ services:
       - TRANSCRIPTION_JOBS_STREAM=transcription-jobs
       - TRANSCRIPTION_RESULTS_STREAM=transcription-results
       - TRANSCRIPTION_DLQ_STREAM=transcription-jobs-dlq
-    volumes:
-      - .:/app:delegated
-      - .env:/app/.env:delegated
     command:
       [
         "faststream",
