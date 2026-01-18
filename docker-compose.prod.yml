@@ -45,8 +45,6 @@ services:
       - ambient-network
     depends_on:
       - postgres
-      - redis
-      - minio
     deploy:
       resources:
         limits:
@@ -88,8 +86,6 @@ services:
       - ambient-network
     depends_on:
       - postgres
-      - redis
-      - minio
     deploy:
       replicas: 2
       resources:
