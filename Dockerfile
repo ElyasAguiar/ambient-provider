@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y \
 # Copy requirements and source code for installation
 COPY pyproject.toml /app/
 COPY ambient_scribe /app/ambient_scribe/
+COPY ambient_scribe/stream_broker.py /app/ambient_scribe/stream_broker.py
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 RUN pip install --no-cache-dir -e .
 
