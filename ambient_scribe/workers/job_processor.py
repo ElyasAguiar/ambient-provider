@@ -23,6 +23,10 @@ class TranscriptionJobProcessor:
     to completion or failure handling.
     """
 
+    # Configurable retry parameters for audio download
+    AUDIO_DOWNLOAD_MAX_RETRIES = 10
+    AUDIO_DOWNLOAD_RETRY_DELAY = 2  # seconds
+
     def __init__(self, ctx: TranscriptionJobContext):
         """Initialize processor with job context.
 
@@ -104,8 +108,8 @@ class TranscriptionJobProcessor:
 
         await self.ctx.publisher.publish_progress(self.ctx.job_id, 10, "Downloading audio file")
 
-        max_retries = 10
-        retry_delay = 2  # seconds
+        max_retries = self.AUDIO_DOWNLOAD_MAX_RETRIES
+        retry_delay = self.AUDIO_DOWNLOAD_RETRY_DELAY
 
         for attempt in range(max_retries):
             try:

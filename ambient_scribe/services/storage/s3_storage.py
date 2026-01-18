@@ -7,9 +7,10 @@ import logging
 import mimetypes
 import uuid
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import aioboto3
+import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
 
@@ -62,8 +63,6 @@ class S3StorageManager:
         )
 
         # Synchronous client for bucket initialization (runs once)
-        import boto3
-
         sync_client = boto3.client(
             "s3",
             endpoint_url=endpoint_url,
@@ -159,16 +158,12 @@ class S3StorageManager:
             raise Exception(f"Error uploading file to S3: {e}")
 
     async def _multipart_upload(
-        self,
-        s3_client,
-        file_content: bytes,
-        object_key: str,
-        content_type: str,
+        self, s3_client: Any, file_content: bytes, object_key: str, content_type: str
     ):
         """Upload large files in parts for better reliability and performance.
 
         Args:
-            s3_client: Async S3 client
+            s3_client: Async S3 client from aioboto3
             file_content: File content as bytes
             object_key: S3 object key
             content_type: MIME type of the file
@@ -183,6 +178,7 @@ class S3StorageManager:
 
         parts = []
         part_number = 1
+        original_error = None
 
         try:
             # Upload each part
@@ -213,7 +209,8 @@ class S3StorageManager:
             logger.info(f"Completed multipart upload for {object_key} ({len(parts)} parts)")
 
         except Exception as e:
-            # Abort upload in case of error
+            # Store original error before abort handling
+            original_error = e
             logger.error(f"Multipart upload failed for {object_key}: {e}")
             try:
                 await s3_client.abort_multipart_upload(
@@ -222,7 +219,8 @@ class S3StorageManager:
                 logger.info(f"Aborted multipart upload for {object_key}")
             except Exception as abort_error:
                 logger.error(f"Failed to abort multipart upload: {abort_error}")
-            raise Exception(f"Multipart upload failed: {e}")
+            # Re-raise the original error, not the abort error
+            raise Exception(f"Multipart upload failed: {original_error}")
 
     async def read_file(self, object_key: str) -> bytes:
         """
@@ -296,8 +294,6 @@ class S3StorageManager:
         """
         try:
             # Use synchronous boto3 client for presigned URL generation
-            import boto3
-
             sync_client = boto3.client(
                 "s3",
                 endpoint_url=self.endpoint_url,
@@ -343,9 +339,11 @@ class S3StorageManager:
         except ClientError:
             return False
 
-    async def get_file_info(self, object_key: str) -> dict:
+    def get_file_info(self, object_key: str) -> dict:
         """
-        Get file information from S3/MinIO asynchronously.
+        Get file information from S3/MinIO.
+
+        Note: This method is synchronous to maintain interface consistency with LocalStorageManager.
 
         Args:
             object_key: S3 object key
@@ -354,23 +352,24 @@ class S3StorageManager:
             Dictionary with file metadata
         """
         try:
-            async with self.session.client(
+            # Use synchronous boto3 client for consistency with LocalStorageManager
+            sync_client = boto3.client(
                 "s3",
                 endpoint_url=self.endpoint_url,
                 aws_access_key_id=self.access_key,
                 aws_secret_access_key=self.secret_key,
                 region_name=self.region,
+                config=Config(signature_version="s3v4"),
                 use_ssl=self.use_ssl,
-                config=self.config,
-            ) as s3_client:
-                response = await s3_client.head_object(Bucket=self.bucket_name, Key=object_key)
-                return {
-                    "filename": object_key.split("/")[-1],
-                    "size": response["ContentLength"],
-                    "modified": response["LastModified"],
-                    "mimetype": response.get("ContentType", "application/octet-stream"),
-                    "etag": response["ETag"],
-                }
+            )
+            response = sync_client.head_object(Bucket=self.bucket_name, Key=object_key)
+            return {
+                "filename": object_key.split("/")[-1],
+                "size": response["ContentLength"],
+                "modified": response["LastModified"],
+                "mimetype": response.get("ContentType", "application/octet-stream"),
+                "etag": response["ETag"],
+            }
         except ClientError as e:
             logger.error(f"Error getting file info from S3: {e}")
             return {}
