@@ -83,11 +83,7 @@ services:
     volumes:
       - .:/app:delegated
       - .env:/app/.env:delegated
-    command:
-      [
-        "arq",
-        "ambient_scribe.workers.transcription.WorkerSettings",
-      ]
+    command: ["arq", "ambient_scribe.workers.transcription.WorkerSettings"]
     networks:
       - ambient-network
     depends_on:
@@ -106,8 +102,6 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-
-  # FastStream consumer for processing transcription results
   stream-consumer:
     build:
       context: .
@@ -157,7 +151,6 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-
   postgres:
     image: postgres:16-alpine
     container_name: ambient-scribe-postgres
@@ -172,49 +165,6 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - ambient-network
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 256M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "5m"
-        max-file: "3"
-  redis:
-    image: redis:7-alpine
-    container_name: ambient-scribe-redis
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    networks:
-      - ambient-network
-    command: redis-server --appendonly yes
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "5m"
-        max-file: "3"
-
-  minio:
-    image: minio/minio:latest
-    container_name: ambient-scribe-minio
-    restart: unless-stopped
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
-    volumes:
-      - minio_data:/data
-    networks:
-      - ambient-network
-    command: server /data --console-address ":9001"
     deploy:
       resources:
         limits:
