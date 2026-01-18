@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Transcription job processor with clear separation of concerns."""
+
+import asyncio
 import logging
 import tempfile
 import traceback

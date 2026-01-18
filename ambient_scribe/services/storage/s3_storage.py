@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """S3/MinIO storage manager with async upload support."""
-import asyncio
+
 import logging
 import mimetypes
 import uuid
@@ -147,9 +147,7 @@ class S3StorageManager:
                     logger.info(f"Uploaded file directly: {object_key} ({len(file_content)} bytes)")
                 else:
                     # For large files, use multipart upload
-                    await self._multipart_upload(
-                        s3_client, file_content, object_key, content_type
-                    )
+                    await self._multipart_upload(s3_client, file_content, object_key, content_type)
                     logger.info(
                         f"Uploaded file via multipart: {object_key} ({len(file_content)} bytes)"
                     )
