@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Transcription job processor with clear separation of concerns."""
+
+import asyncio
 import logging
 import tempfile
 import traceback
@@ -20,6 +22,10 @@ class TranscriptionJobProcessor:
     The processor orchestrates the entire transcription workflow from initialization
     to completion or failure handling.
     """
+
+    # Configurable retry parameters for audio download
+    AUDIO_DOWNLOAD_MAX_RETRIES = 10
+    AUDIO_DOWNLOAD_RETRY_DELAY = 2  # seconds
 
     def __init__(self, ctx: TranscriptionJobContext):
         """Initialize processor with job context.
@@ -90,7 +96,7 @@ class TranscriptionJobProcessor:
         await self.ctx.db.commit()
 
     async def _download_audio(self) -> bytes:
-        """Download audio file from storage.
+        """Download audio file from storage with retry logic for pending uploads.
 
         Returns:
             Audio file content as bytes
@@ -102,13 +108,38 @@ class TranscriptionJobProcessor:
 
         await self.ctx.publisher.publish_progress(self.ctx.job_id, 10, "Downloading audio file")
 
-        try:
-            audio_data = await self.ctx.storage_manager.read_file(self.ctx.audio_key)
-            logger.info(f"[{self.ctx.worker_id}] Downloaded {len(audio_data)} bytes")
-            return audio_data
-        except Exception as e:
-            logger.error(f"[{self.ctx.worker_id}] Failed to download audio: {e}")
-            raise RuntimeError(f"Failed to download audio file: {e}") from e
+        max_retries = self.AUDIO_DOWNLOAD_MAX_RETRIES
+        retry_delay = self.AUDIO_DOWNLOAD_RETRY_DELAY
+
+        for attempt in range(max_retries):
+            try:
+                # Check if file exists
+                if await self.ctx.storage_manager.file_exists(self.ctx.audio_key):
+                    audio_data = await self.ctx.storage_manager.read_file(self.ctx.audio_key)
+                    logger.info(
+                        f"[{self.ctx.worker_id}] Downloaded {len(audio_data)} bytes from MinIO"
+                    )
+                    return audio_data
+                else:
+                    logger.warning(
+                        f"[{self.ctx.worker_id}] Audio file not found yet "
+                        f"(attempt {attempt + 1}/{max_retries}), waiting {retry_delay}s..."
+                    )
+                    if attempt < max_retries - 1:
+                        await asyncio.sleep(retry_delay)
+
+            except Exception as e:
+                logger.error(f"[{self.ctx.worker_id}] Error downloading audio: {e}")
+                if attempt < max_retries - 1:
+                    logger.warning(
+                        f"[{self.ctx.worker_id}] Retrying download "
+                        f"(attempt {attempt + 1}/{max_retries})..."
+                    )
+                    await asyncio.sleep(retry_delay)
+                else:
+                    raise RuntimeError(f"Failed to download audio file: {e}") from e
+
+        raise RuntimeError(f"Audio file not available after {max_retries} attempts")
 
     @asynccontextmanager
     async def _temp_audio_file(self, audio_data: bytes):
