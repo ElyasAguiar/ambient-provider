@@ -25,6 +25,9 @@ services:
       - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
       - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME:-transcriptions}
       - MINIO_USE_SSL=${MINIO_USE_SSL:-false}
+      - TRANSCRIPTION_JOBS_STREAM=${TRANSCRIPTION_JOBS_STREAM:-transcription-jobs}
+      - TRANSCRIPTION_RESULTS_STREAM=${TRANSCRIPTION_RESULTS_STREAM:-transcription-results}
+      - TRANSCRIPTION_DLQ_STREAM=${TRANSCRIPTION_DLQ_STREAM:-transcription-jobs-dlq}
     command:
       [
         "uvicorn",
@@ -109,9 +112,9 @@ services:
       - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
       - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME:-transcriptions}
       - MINIO_USE_SSL=${MINIO_USE_SSL:-false}
-      - TRANSCRIPTION_JOBS_STREAM=transcription-jobs
-      - TRANSCRIPTION_RESULTS_STREAM=transcription-results
-      - TRANSCRIPTION_DLQ_STREAM=transcription-jobs-dlq
+      - TRANSCRIPTION_JOBS_STREAM=${TRANSCRIPTION_JOBS_STREAM:-transcription-jobs}
+      - TRANSCRIPTION_RESULTS_STREAM=${TRANSCRIPTION_RESULTS_STREAM:-transcription-results}
+      - TRANSCRIPTION_DLQ_STREAM=${TRANSCRIPTION_DLQ_STREAM:-transcription-jobs-dlq}
     command:
       [
         "faststream",
