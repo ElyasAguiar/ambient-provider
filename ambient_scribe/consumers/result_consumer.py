@@ -143,14 +143,11 @@ async def process_transcription_result(
 
         # Publish SSE event for real-time updates
         publisher = RedisPublisher(redis_client)
-        await publisher.publish_job_update(
+        await publisher.publish_status_update(
             result.job_id,
-            {
-                "job_id": result.job_id,
-                "status": result.status,
-                "transcript_id": result.transcript_id,
-                "error": result.error,
-            },
+            result.status,
+            transcript_id=result.transcript_id,
+            error=result.error,
         )
 
         await redis_client.close()
