@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Transcript and TranscriptJob SQLAlchemy models."""
+
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -31,7 +32,7 @@ class Transcript(Base):
     segments: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     speaker_roles: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     status: Mapped[str] = mapped_column(
-        Enum("processing", "completed", "failed", name="transcript_status"),
+        Enum("uploading", "processing", "completed", "failed", name="transcript_status"),
         default="processing",
         nullable=False,
     )

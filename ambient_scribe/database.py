@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Database configuration and session management."""
+
 from typing import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -49,6 +50,28 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
         try:
             yield session
             await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
+
+
+async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
+    """
+    Provides an async database session for background tasks.
+
+    This is similar to get_db() but designed for use in background tasks
+    where FastAPI dependency injection is not available.
+
+    Usage:
+        async for db in get_async_session():
+            # Use db session
+            break
+    """
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
         except Exception:
             await session.rollback()
             raise
