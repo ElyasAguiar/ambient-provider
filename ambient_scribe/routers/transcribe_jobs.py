@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Job-based transcription router with Redis queue."""
+
 import json
 import logging
 import os
@@ -248,9 +249,22 @@ async def _enqueue_job_internal(
         raise HTTPException(status_code=400, detail="File must have a filename")
 
     try:
-        # Read file content
+        # Read file content with size validation
         content = await file.read()
-        logger.info(f"Read {len(content)} bytes from uploaded file")
+        content_size = len(content)
+
+        # Validate content is not empty
+        if content_size == 0:
+            raise HTTPException(status_code=400, detail="Uploaded file is empty")
+
+        # Validate actual size doesn't exceed limit
+        if content_size > settings.max_file_size:
+            raise HTTPException(
+                status_code=413,
+                detail=f"File size ({content_size} bytes) exceeds maximum allowed size ({settings.max_file_size} bytes)",
+            )
+
+        logger.info(f"Read {content_size} bytes from uploaded file '{file.filename}'")
 
         # Upload to MinIO and get object key
         audio_key = await storage.save_file(content, file.filename, subfolder="transcriptions")
