@@ -2,8 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Job-based transcription router with Redis queue."""
-
-import asyncio
 import json
 import logging
 import os
@@ -45,101 +43,6 @@ async def get_arq_pool(settings: Settings = Depends(get_settings)):
     if _redis_pool is None:
         _redis_pool = await create_pool(RedisSettings.from_dsn(settings.redis_url))
     return _redis_pool
-
-
-async def _upload_file_and_update_transcript(
-    storage: S3StorageManager,
-    content: bytes,
-    filename: str,
-    transcript_id: UUID,
-    settings: Settings,
-):
-    """
-    Background task to upload file to S3 and update transcript record.
-
-    This runs asynchronously after returning response to client.
-
-    Args:
-        storage: S3StorageManager instance
-        content: File content as bytes
-        filename: Original filename
-        transcript_id: Transcript ID to update
-        settings: Application settings
-    """
-    try:
-        logger.info(
-            f"[Background Upload] Starting upload for transcript {transcript_id}: "
-            f"{filename} ({len(content)} bytes)"
-        )
-
-        # Upload to S3/MinIO asynchronously
-        audio_key = await storage.save_file(content, filename, subfolder="transcriptions")
-
-        logger.info(
-            f"[Background Upload] Upload completed for transcript {transcript_id}: {audio_key}"
-        )
-
-        # Update transcript with real audio_key and change status to processing
-        # Note: We need a new database session for background tasks
-        from ambient_scribe.database import get_async_session
-
-        async for db in get_async_session():
-            try:
-                transcript_repo = TranscriptRepository(db)
-                transcript = await transcript_repo.get_by_id(transcript_id)
-
-                if transcript:
-                    transcript.audio_key = audio_key
-                    transcript.status = "processing"
-                    await db.commit()
-                    logger.info(
-                        f"[Background Upload] Updated transcript {transcript_id} "
-                        f"with audio_key: {audio_key}"
-                    )
-                else:
-                    logger.error(
-                        f"[Background Upload] Transcript {transcript_id} not found in database"
-                    )
-                break
-            except Exception as db_error:
-                await db.rollback()
-                logger.error(
-                    f"[Background Upload] Database error updating transcript {transcript_id}: "
-                    f"{db_error}"
-                )
-                raise
-
-    except Exception as e:
-        logger.error(
-            f"[Background Upload] Upload failed for transcript {transcript_id}: {e}",
-            exc_info=True,
-        )
-
-        # Mark transcript as failed
-        try:
-            from ambient_scribe.database import get_async_session
-
-            async for db in get_async_session():
-                try:
-                    transcript_repo = TranscriptRepository(db)
-                    await transcript_repo.update_status(
-                        transcript_id,
-                        status="failed",
-                        error_message=f"File upload failed: {str(e)}",
-                    )
-                    await db.commit()
-                    logger.info(f"[Background Upload] Marked transcript {transcript_id} as failed")
-                    break
-                except Exception as db_error:
-                    await db.rollback()
-                    logger.error(
-                        f"[Background Upload] Failed to mark transcript as failed: {db_error}"
-                    )
-        except Exception as cleanup_error:
-            logger.error(
-                f"[Background Upload] Cleanup error for transcript {transcript_id}: "
-                f"{cleanup_error}"
-            )
 
 
 @router.post("/transcribe")
@@ -345,45 +248,27 @@ async def _enqueue_job_internal(
         raise HTTPException(status_code=400, detail="File must have a filename")
 
     try:
-        # Read file content with size validation
+        # Read file content
         content = await file.read()
-        content_size = len(content)
+        logger.info(f"Read {len(content)} bytes from uploaded file")
 
-        # Validate content is not empty
-        if content_size == 0:
-            raise HTTPException(status_code=400, detail="Uploaded file is empty")
+        # Upload to MinIO and get object key
+        audio_key = await storage.save_file(content, file.filename, subfolder="transcriptions")
+        logger.info(f"Uploaded audio to MinIO: {audio_key}")
 
-        # Validate actual size doesn't exceed limit
-        if content_size > settings.max_file_size:
-            raise HTTPException(
-                status_code=413,
-                detail=f"File size ({content_size} bytes) exceeds maximum allowed size ({settings.max_file_size} bytes)",
-            )
-
-        logger.info(f"Read {content_size} bytes from uploaded file '{file.filename}'")
-
-        # Generate unique identifiers
-        job_id = str(uuid4())
-        file_id = str(uuid4())
-
-        # Create temporary audio_key (will be updated by background task)
-        temp_audio_key = f"uploading/{file_id}/{file.filename}"
-
-        # Create transcript record in database with status="uploading"
+        # Create transcript record in database with object key
         transcript_repo = TranscriptRepository(db)
         transcript = await transcript_repo.create(
             filename=file.filename,
-            audio_key=temp_audio_key,
+            audio_key=audio_key,
             language=language,
             session_id=session_uuid,
         )
-        # Set initial status to "uploading"
-        transcript.status = "uploading"
         await db.commit()
-        logger.info(
-            f"Created transcript record: {transcript.id} with status='uploading' "
-            f"(will upload in background)"
-        )
+        logger.info(f"Created transcript record: {transcript.id}")
+
+        # Generate job ID
+        job_id = str(uuid4())
 
         # Create job record in database with engine info
         job_repo = TranscriptJobRepository(db)
@@ -396,18 +281,6 @@ async def _enqueue_job_internal(
         )
         await db.commit()
         logger.info(f"Created {engine.upper()} job record: {job_id}")
-
-        # Start background upload task (non-blocking)
-        asyncio.create_task(
-            _upload_file_and_update_transcript(
-                storage=storage,
-                content=content,
-                filename=file.filename,
-                transcript_id=transcript.id,
-                settings=settings,
-            )
-        )
-        logger.info(f"Started background upload task for transcript {transcript.id}")
 
         # Get Redis client for job manager
         redis_client = await get_redis_client(settings.redis_url)
@@ -425,11 +298,10 @@ async def _enqueue_job_internal(
         )
 
         # Publish job to FastStream Redis Streams
-        # Note: audio_key will be updated by background task before worker processes it
         job_message = TranscriptionJobMessage(
             job_id=job_id,
             transcript_id=str(transcript.id),
-            audio_key=temp_audio_key,  # Worker will retry if upload not complete yet
+            audio_key=audio_key,
             filename=file.filename,
             engine=engine,
             language=language,
@@ -446,13 +318,12 @@ async def _enqueue_job_internal(
 
         await redis_client.close()
 
-        # Return response immediately (upload happening in background)
         return {
             "job_id": job_id,
             "transcript_id": str(transcript.id),
             "engine": engine,
             "status": "queued",
-            "message": f"{engine.upper()} transcription job enqueued successfully. Upload in progress.",
+            "message": f"{engine.upper()} transcription job enqueued successfully",
         }
 
     except Exception as e:

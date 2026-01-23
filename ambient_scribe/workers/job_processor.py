@@ -98,9 +98,6 @@ class TranscriptionJobProcessor:
     async def _download_audio(self) -> bytes:
         """Download audio file from storage with retry logic for pending uploads.
 
-        This method handles the case where the upload is still in progress
-        by checking the transcript status and waiting for the upload to complete.
-
         Returns:
             Audio file content as bytes
 
@@ -116,23 +113,6 @@ class TranscriptionJobProcessor:
 
         for attempt in range(max_retries):
             try:
-                # Check transcript status to see if upload is still in progress
-                transcript = await self.ctx.transcript_repo.get_by_id(self.ctx.transcript_id)
-
-                if transcript and transcript.status == "uploading":
-                    logger.info(
-                        f"[{self.ctx.worker_id}] Transcript {self.ctx.transcript_id} "
-                        f"is still uploading (attempt {attempt + 1}/{max_retries})"
-                    )
-                    if attempt < max_retries - 1:
-                        await asyncio.sleep(retry_delay)
-                        continue
-                    else:
-                        raise RuntimeError(
-                            f"Upload did not complete after {max_retries} attempts "
-                            f"({max_retries * retry_delay}s)"
-                        )
-
                 # Check if file exists
                 if await self.ctx.storage_manager.file_exists(self.ctx.audio_key):
                     audio_data = await self.ctx.storage_manager.read_file(self.ctx.audio_key)
@@ -148,9 +128,6 @@ class TranscriptionJobProcessor:
                     if attempt < max_retries - 1:
                         await asyncio.sleep(retry_delay)
 
-            except RuntimeError:
-                # Re-raise RuntimeError (from upload timeout)
-                raise
             except Exception as e:
                 logger.error(f"[{self.ctx.worker_id}] Error downloading audio: {e}")
                 if attempt < max_retries - 1:
