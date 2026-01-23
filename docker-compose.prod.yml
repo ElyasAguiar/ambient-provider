@@ -56,44 +56,6 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-  worker:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    env_file:
-      - .env
-    environment:
-      - DEBUG=true
-      - NVIDIA_API_KEY=${NVIDIA_API_KEY}
-      - DATABASE_URL=postgresql+asyncpg://scribehub:scribehub@postgres:5432/scribehub
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
-      - MINIO_ENDPOINT=minio:9000
-      - MINIO_ENDPOINT=${MINIO_ENDPOINT:-minio.ambient-provider.orb.local}
-      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
-      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
-      - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME:-transcriptions}
-      - MINIO_USE_SSL=${MINIO_USE_SSL:-false}
-      - TEMPLATES_DIR=/app/templates
-      - NUMBA_CACHE_DIR=/tmp/numba_cache
-      - NUMBA_DISABLE_CACHING=1
-    command: ["arq", "ambient_scribe.workers.transcription.WorkerSettings"]
-    networks:
-      - ambient-network
-    depends_on:
-      - postgres
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-        reservations:
-          memory: 256M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
   stream-consumer:
     build:
       context: .
