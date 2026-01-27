@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     # Storage
     storage_backend: str = "local"  # "local"
     upload_dir: str = "./uploads"
-    max_file_size: int = 100 * 1024 * 1024  # 100MB
+    max_file_size: int = 2048 * 1024 * 1024  # 2GB
 
     # Templates
     templates_dir: str = "./templates"
