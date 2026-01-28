@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y \
 # Copy requirements and source code for installation
 COPY pyproject.toml /app/
 COPY ambient_scribe /app/ambient_scribe/
+COPY ambient_scribe/stream_broker.py /app/ambient_scribe/stream_broker.py
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 RUN pip install --no-cache-dir -e .
 
@@ -53,10 +54,6 @@ USER appuser
 
 # Expose port
 EXPOSE 8000
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:8000/api/health/', timeout=5)"
 
 # Run the application
 CMD ["uvicorn", "ambient_scribe.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]

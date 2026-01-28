@@ -6,6 +6,8 @@ services:
     restart: unless-stopped
     ports:
       - "8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     env_file:
       - .env
     environment:
@@ -23,9 +25,9 @@ services:
       - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
       - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME:-transcriptions}
       - MINIO_USE_SSL=${MINIO_USE_SSL:-false}
-    volumes:
-      - .:/app:delegated
-      - .env:/app/.env:delegated
+      - TRANSCRIPTION_JOBS_STREAM=${TRANSCRIPTION_JOBS_STREAM:-transcription-jobs}
+      - TRANSCRIPTION_RESULTS_STREAM=${TRANSCRIPTION_RESULTS_STREAM:-transcription-results}
+      - TRANSCRIPTION_DLQ_STREAM=${TRANSCRIPTION_DLQ_STREAM:-transcription-jobs-dlq}
     command:
       [
         "uvicorn",
@@ -54,41 +56,43 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-  worker:
+  stream-consumer:
     build:
       context: .
       dockerfile: Dockerfile
+    restart: unless-stopped
     extra_hosts:
       - "host.docker.internal:host-gateway"
     env_file:
       - .env
     environment:
-      - DEBUG=true
-      - NVIDIA_API_KEY=${NVIDIA_API_KEY}
+      - DEBUG=false
       - DATABASE_URL=postgresql+asyncpg://scribehub:scribehub@postgres:5432/scribehub
-      - REDIS_URL=redis://redis:6379/0
-      - MINIO_ENDPOINT=minio:9000
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - MINIO_ENDPOINT=${MINIO_ENDPOINT:-minio.ambient-provider.orb.local}
       - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
       - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
       - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME:-transcriptions}
       - MINIO_USE_SSL=${MINIO_USE_SSL:-false}
-      - TEMPLATES_DIR=/app/templates
-      - NUMBA_CACHE_DIR=/tmp/numba_cache
-      - NUMBA_DISABLE_CACHING=1
-    volumes:
-      - .:/app:delegated
-      - .env:/app/.env:delegated
-    command: ["arq", "ambient_scribe.workers.transcription.WorkerSettings"]
+      - TRANSCRIPTION_JOBS_STREAM=${TRANSCRIPTION_JOBS_STREAM:-transcription-jobs}
+      - TRANSCRIPTION_RESULTS_STREAM=${TRANSCRIPTION_RESULTS_STREAM:-transcription-results}
+      - TRANSCRIPTION_DLQ_STREAM=${TRANSCRIPTION_DLQ_STREAM:-transcription-jobs-dlq}
+    command:
+      [
+        "faststream",
+        "run",
+        "ambient_scribe.stream_broker:app",
+        "--workers",
+        "2",
+      ]
     networks:
       - ambient-network
     depends_on:
       - postgres
-      - redis
     deploy:
       resources:
         limits:
-          memory: 1G
+          memory: 512M
         reservations:
           memory: 256M
     logging:
@@ -121,16 +125,7 @@ services:
       options:
         max-size: "5m"
         max-file: "3"
-  redis:
-    image: redis:7-alpine
-    container_name: ambient-scribe-redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    networks:
-      - ambient-network
-    command: redis-server --appendonly yes
+
   # # NVIDIA Parakeet NIM for local ASR (modelo de transcrição)
   # parakeet-nim:
   #   image: nvcr.io/nim/nvidia/parakeet-1-1b-ctc-en-us:latest
@@ -222,8 +217,4 @@ volumes:
   api_logs:
     driver: local
   postgres_data:
-    driver: local
-  parakeet_cache:
-    driver: local
-  llama_cache:
     driver: local

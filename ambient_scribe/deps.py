@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     # Storage
     storage_backend: str = "local"  # "local"
     upload_dir: str = "./uploads"
-    max_file_size: int = 100 * 1024 * 1024  # 100MB
+    max_file_size: int = 2048 * 1024 * 1024  # 2GB
 
     # Templates
     templates_dir: str = "./templates"
@@ -80,6 +80,13 @@ class Settings(BaseSettings):
     # Redis Configuration
     redis_url: str = "redis://localhost:6379/0"
     redis_job_ttl: int = 3600  # 1 hour TTL for job status in Redis
+
+    # FastStream Configuration
+    transcription_jobs_stream: str = "transcription-jobs"
+    transcription_results_stream: str = "transcription-results"
+    transcription_dlq_stream: str = "transcription-jobs-dlq"
+    stream_max_retries: int = 3
+    stream_retry_delay: int = 60  # seconds
 
     # MinIO/S3 Configuration
     minio_endpoint: str = "localhost:9000"

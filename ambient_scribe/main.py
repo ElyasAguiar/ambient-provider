@@ -47,8 +47,13 @@ async def lifespan(app: FastAPI):
         use_ssl=settings.minio_use_ssl,
     )
 
+    # Connect FastStream broker for publishing
+    from ambient_scribe.stream_broker import broker
+    await broker.connect()
+
     yield
     # Shutdown
+    await broker.stop()
     await close_db()
 
 

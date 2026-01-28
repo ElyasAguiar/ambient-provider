@@ -18,10 +18,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ambient_scribe.database import get_db
 from ambient_scribe.deps import Settings, get_settings
+from ambient_scribe.models.api.stream_messages import TranscriptionJobMessage
 from ambient_scribe.repositories.transcript_job_repository import TranscriptJobRepository
 from ambient_scribe.repositories.transcript_repository import TranscriptRepository
 from ambient_scribe.services.redis import RedisJobManager, RedisSubscriber, get_redis_client
 from ambient_scribe.services.storage import S3StorageManager
+from ambient_scribe.stream_broker import broker
 
 router = APIRouter(prefix="/api/transcribe/jobs", tags=["transcription-jobs"])
 logger = logging.getLogger("ambient_scribe.jobs")
@@ -295,10 +297,8 @@ async def _enqueue_job_internal(
             },
         )
 
-        # Enqueue job to ARQ with engine parameters
-        arq_pool = await get_arq_pool(settings)
-        await arq_pool.enqueue_job(
-            "process_transcription_job",
+        # Publish job to FastStream Redis Streams
+        job_message = TranscriptionJobMessage(
             job_id=job_id,
             transcript_id=str(transcript.id),
             audio_key=audio_key,
@@ -307,8 +307,14 @@ async def _enqueue_job_internal(
             language=language,
             context_id=context_uuid_str,
             engine_params=engine_params,
+            retry_count=0,
         )
-        logger.info(f"Enqueued {engine.upper()} job to ARQ: {job_id}")
+
+        await broker.publish(
+            message=job_message.model_dump(),
+            stream=settings.transcription_jobs_stream,
+        )
+        logger.info(f"Published {engine.upper()} job to stream: {job_id}")
 
         await redis_client.close()
 
