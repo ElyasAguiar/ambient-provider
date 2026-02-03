@@ -11,11 +11,11 @@ from ambient_scribe.models.api.notes_schema import (
     TraceEvent,
 )
 from ambient_scribe.models.api.templates_schema import TemplateInfo, TemplateRequest
-from ambient_scribe.models.api.transcripts_schema import Transcript, TranscriptSegment
+from ambient_scribe.models.api.transcripts_schema import Transcript, TranscriptWord
 
 __all__ = [
     # Transcripts
-    "TranscriptSegment",
+    "TranscriptWord",
     "Transcript",
     # Notes
     "NoteRequest",

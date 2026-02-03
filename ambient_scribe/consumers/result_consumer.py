@@ -9,7 +9,7 @@ from uuid import UUID
 
 from faststream import Logger
 from faststream.redis.annotations import ContextRepo, Redis
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from ambient_scribe.deps import get_settings
 from ambient_scribe.models.api.stream_messages import TranscriptionResultMessage
@@ -83,15 +83,14 @@ async def process_transcription_result(
             # Process based on status
             if result.status == "completed":
                 # Update transcript with results
-                await transcript_repo.update_segments(
+                await transcript_repo.update_transcription(
                     transcript_id=transcript_id,
-                    segments=result.segments,
+                    text=result.text,
+                    words=result.words,
                     duration=result.duration,
                     speaker_roles=result.speaker_roles,
                 )
-                logger.info(
-                    f"Updated transcript {transcript_id} with {len(result.segments)} segments"
-                )
+                logger.info(f"Updated transcript {transcript_id} with {len(result.words)} words")
 
                 # Mark job as completed
                 await job_repo.mark_completed(
@@ -135,7 +134,8 @@ async def process_transcription_result(
                 result.job_id,
                 {
                     "transcript_id": result.transcript_id,
-                    "segments": result.segments,
+                    "text": result.text,
+                    "words": result.words,
                     "duration": result.duration,
                     "language": result.language,
                 },

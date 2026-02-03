@@ -28,7 +28,8 @@ class Transcript(Base):
     audio_key: Mapped[str] = mapped_column(String(500), nullable=False)
     language: Mapped[str] = mapped_column(String(10), default="en-US", nullable=False)
     duration: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    segments: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    text: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    words: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
     speaker_roles: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     status: Mapped[str] = mapped_column(
         Enum("processing", "completed", "failed", name="transcript_status"),

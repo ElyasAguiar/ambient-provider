@@ -11,7 +11,7 @@ from uuid import uuid4
 import aiohttp
 
 from ambient_scribe.deps import get_settings
-from ambient_scribe.models.api.transcripts_schema import Transcript, TranscriptSegment
+from ambient_scribe.models.api.transcripts_schema import Transcript, TranscriptWord
 
 logger = logging.getLogger(__name__)
 
@@ -122,52 +122,86 @@ def normalize_whisperx_response(whisperx_data: Dict[str, Any]) -> Transcript:
     Returns:
         Normalized Transcript object
     """
-    segments: List[TranscriptSegment] = []
+    words: List[TranscriptWord] = []
 
-    # WhisperX returns segments with speaker labels
+    # WhisperX returns segments with word-level timestamps
     for segment in whisperx_data.get("segments", []):
-        segments.append(
-            TranscriptSegment(
-                start=segment.get("start", 0.0),
-                end=segment.get("end", 0.0),
-                text=segment.get("text", "").strip(),
-                speaker_tag=_parse_speaker_tag(segment.get("speaker")),
-                confidence=segment.get("confidence"),
-            )
-        )
+        segment_words = segment.get("words", [])
+        
+        # If no word-level data, create words from segment text
+        if not segment_words:
+            segment_text = segment.get("text", "").strip()
+            if segment_text:
+                # Split into words and estimate timestamps
+                word_texts = segment_text.split()
+                segment_start = segment.get("start", 0.0) * 1000.0  # Convert to ms
+                segment_end = segment.get("end", 0.0) * 1000.0
+                segment_duration = segment_end - segment_start
+                word_duration = segment_duration / len(word_texts) if word_texts else 0
+                
+                for i, word_text in enumerate(word_texts):
+                    word_start = segment_start + (i * word_duration)
+                    word_end = word_start + word_duration
+                    
+                    words.append(
+                        TranscriptWord(
+                            text=word_text,
+                            start=word_start,
+                            end=word_end,
+                            confidence=segment.get("confidence"),
+                            speaker=_parse_speaker_letter(segment.get("speaker")),
+                        )
+                    )
+        else:
+            # Use word-level timestamps from WhisperX
+            for word_data in segment_words:
+                words.append(
+                    TranscriptWord(
+                        text=word_data.get("word", "").strip(),
+                        start=word_data.get("start", 0.0) * 1000.0,  # Convert to ms
+                        end=word_data.get("end", 0.0) * 1000.0,  # Convert to ms
+                        confidence=word_data.get("confidence"),
+                        speaker=_parse_speaker_letter(segment.get("speaker")),
+                    )
+                )
 
     # Build full transcript text
-    full_text = " ".join(seg.text for seg in segments)
+    text = " ".join(word.text for word in words)
+
+    # Calculate duration in seconds
+    duration = words[-1].end / 1000.0 if words else 0.0
 
     # Create transcript
     transcript = Transcript(
         id=str(uuid4()),
-        segments=segments,
+        words=words,
+        text=text,
         language=whisperx_data.get("language", "en"),
-        duration=segments[-1].end if segments else 0.0,
+        duration=duration,
         filename=None,  # Will be set by caller
     )
 
     return transcript
 
 
-def _parse_speaker_tag(speaker: Optional[str]) -> Optional[int]:
+def _parse_speaker_letter(speaker: Optional[str]) -> str:
     """
-    Parse WhisperX speaker label to integer tag.
+    Parse WhisperX speaker label to letter format.
 
     WhisperX uses 'SPEAKER_00', 'SPEAKER_01', etc.
-    Convert to 0, 1, 2, ...
+    Convert to A, B, C, ...
     """
     if not speaker:
-        return None
+        return "A"
 
     try:
         # Extract number from 'SPEAKER_XX'
         if speaker.startswith("SPEAKER_"):
-            return int(speaker.split("_")[1])
-        return None
+            speaker_num = int(speaker.split("_")[1])
+            return chr(65 + speaker_num)  # 0->A, 1->B, 2->C, etc.
+        return "A"
     except (IndexError, ValueError):
-        return None
+        return "A"
 
 
 async def submit_whisperx_job(
