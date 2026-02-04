@@ -44,7 +44,8 @@ class TranscriptRepository:
             audio_key=audio_key,
             language=language,
             status="processing",
-            segments=[],
+            text="",
+            words=[],
         )
         self.db.add(transcript)
         await self.db.flush()
@@ -114,19 +115,21 @@ class TranscriptRepository:
             await self.db.refresh(transcript)
         return transcript
 
-    async def update_segments(
+    async def update_transcription(
         self,
         transcript_id: UUID,
-        segments: List[dict],
+        text: str,
+        words: List[dict],
         duration: Optional[float] = None,
         speaker_roles: Optional[dict] = None,
     ) -> Optional[db_models.Transcript]:
         """
-        Update transcript segments and metadata.
+        Update transcript with text, words and metadata.
 
         Args:
             transcript_id: Transcript UUID
-            segments: List of transcript segments
+            text: Complete transcription text
+            words: List of transcript words
             duration: Optional audio duration
             speaker_roles: Optional speaker role mapping
 
@@ -135,7 +138,8 @@ class TranscriptRepository:
         """
         transcript = await self.get_by_id(transcript_id)
         if transcript:
-            transcript.segments = segments
+            transcript.text = text
+            transcript.words = words
             if duration is not None:
                 transcript.duration = duration
             if speaker_roles is not None:

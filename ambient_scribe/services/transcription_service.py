@@ -81,7 +81,7 @@ class TranscriptionService:
             **engine_params: Engine-specific parameters
 
         Returns:
-            Transcript object with segments
+            Transcript object with words
 
         Raises:
             ValueError: If engine is not supported or validation fails
@@ -151,7 +151,7 @@ class TranscriptionService:
             )
 
             logger.info(
-                f"ASR transcription completed: {len(transcript.segments)} segments, "
+                f"ASR transcription completed: {len(transcript.words)} words, "
                 f"duration={transcript.duration:.2f}s"
             )
 
@@ -219,7 +219,7 @@ class TranscriptionService:
             transcript.filename = filename
 
             logger.info(
-                f"WhisperX transcription completed: {len(transcript.segments)} segments, "
+                f"WhisperX transcription completed: {len(transcript.words)} words, "
                 f"duration={transcript.duration:.2f}s"
             )
 

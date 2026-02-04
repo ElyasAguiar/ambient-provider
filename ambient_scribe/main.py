@@ -49,6 +49,7 @@ async def lifespan(app: FastAPI):
 
     # Connect FastStream broker for publishing
     from ambient_scribe.stream_broker import broker
+
     await broker.connect()
 
     yield

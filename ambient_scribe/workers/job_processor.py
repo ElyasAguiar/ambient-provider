@@ -215,7 +215,7 @@ class TranscriptionJobProcessor:
 
             logger.info(
                 f"[{self.ctx.worker_id}] Transcription completed: "
-                f"{len(transcript_result.segments)} segments, "
+                f"{len(transcript_result.words)} words, "
                 f"duration={transcript_result.duration}s"
             )
 
@@ -225,7 +225,7 @@ class TranscriptionJobProcessor:
         """Save transcription results to database.
 
         Converts Pydantic models to dictionaries for JSON storage and
-        updates the transcript record with segments, duration, and speaker roles.
+        updates the transcript record with text, words, duration, and speaker roles.
 
         Args:
             transcript_result: Result from transcription service
@@ -233,20 +233,21 @@ class TranscriptionJobProcessor:
         await self.ctx.publisher.publish_progress(self.ctx.job_id, 80, "Saving results")
 
         # Convert Pydantic models to dicts for JSON storage
-        segments_dict = [
-            seg.model_dump() if hasattr(seg, "model_dump") else seg.dict()
-            for seg in transcript_result.segments
+        words_dict = [
+            word.model_dump() if hasattr(word, "model_dump") else word.dict()
+            for word in transcript_result.words
         ]
 
         # Update transcript in database
-        await self.ctx.transcript_repo.update_segments(
+        await self.ctx.transcript_repo.update_transcription(
             self.ctx.transcript_id,
-            segments=segments_dict,
+            text=transcript_result.text,
+            words=words_dict,
             duration=transcript_result.duration,
             speaker_roles=transcript_result.speaker_roles,
         )
 
-        logger.info(f"[{self.ctx.worker_id}] Saved {len(segments_dict)} segments to database")
+        logger.info(f"[{self.ctx.worker_id}] Saved {len(words_dict)} words to database")
 
     async def _complete_job(self, transcript_result) -> dict:
         """Mark job as completed and publish results.
@@ -267,7 +268,7 @@ class TranscriptionJobProcessor:
         # Prepare result data
         result_data = {
             "transcript_id": str(self.ctx.transcript_id),
-            "segments_count": len(transcript_result.segments),
+            "words_count": len(transcript_result.words),
             "duration": transcript_result.duration,
         }
 

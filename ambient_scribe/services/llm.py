@@ -88,7 +88,7 @@ async def generate_note_service(
             TraceEvent(
                 event_type="transcript_processed",
                 message="Processed transcript with speaker identification",
-                metadata={"num_segments": len(transcript.segments)},
+                metadata={"num_words": len(transcript.words)},
             )
         )
 
@@ -533,43 +533,79 @@ def format_transcript_with_speakers(transcript: Transcript) -> str:
         speaker_roles = {tag: role.title() for tag, role in transcript.speaker_roles.items()}
     else:
         speaker_roles = {}  # Track potential roles based on content
-
+        
+        # Group words by speaker to analyze content
+        speaker_texts = {}
+        for word in transcript.words:
+            if word.speaker:
+                if word.speaker not in speaker_texts:
+                    speaker_texts[word.speaker] = []
+                speaker_texts[word.speaker].append(word.text)
+        
         # First pass - try to identify speaker roles
-        for segment in transcript.segments:
-            text_lower = segment.text.lower()
-            if segment.speaker_tag:
-                if any(
-                    term in text_lower
-                    for term in [
-                        "my symptoms",
-                        "i feel",
-                        "i have been",
-                        "i am experiencing",
-                    ]
-                ):
-                    speaker_roles[segment.speaker_tag] = "Patient"
-                elif any(
-                    term in text_lower
-                    for term in [
-                        "recommend",
-                        "prescribe",
-                        "diagnosis",
-                        "examination",
-                        "assessment",
-                    ]
-                ):
-                    speaker_roles[segment.speaker_tag] = "Provider"
+        for speaker, words in speaker_texts.items():
+            text_lower = " ".join(words).lower()
+            if any(
+                term in text_lower
+                for term in [
+                    "my symptoms",
+                    "i feel",
+                    "i have been",
+                    "i am experiencing",
+                ]
+            ):
+                speaker_roles[speaker] = "Patient"
+            elif any(
+                term in text_lower
+                for term in [
+                    "recommend",
+                    "prescribe",
+                    "diagnosis",
+                    "examination",
+                    "assessment",
+                ]
+            ):
+                speaker_roles[speaker] = "Provider"
+
+    # Group words by speaker and create segments
+    segments = []
+    current_speaker = None
+    current_words = []
+    current_start = 0.0
+    
+    for word in transcript.words:
+        if word.speaker != current_speaker:
+            if current_words:
+                segments.append({
+                    "speaker": current_speaker,
+                    "text": " ".join(current_words),
+                    "start": current_start / 1000.0,  # Convert ms to seconds
+                })
+            current_speaker = word.speaker
+            current_words = [word.text]
+            current_start = word.start
+        else:
+            current_words.append(word.text)
+    
+    # Add last segment
+    if current_words:
+        segments.append({
+            "speaker": current_speaker,
+            "text": " ".join(current_words),
+            "start": current_start / 1000.0,
+        })
 
     # Format transcript with roles
-    for segment in transcript.segments:
-        if segment.speaker_tag in speaker_roles:
-            speaker = f"{speaker_roles[segment.speaker_tag]} (Speaker {segment.speaker_tag})"
+    for segment in segments:
+        speaker_id = segment["speaker"]
+        if speaker_id in speaker_roles:
+            speaker = f"{speaker_roles[speaker_id]} (Speaker {speaker_id})"
         else:
-            speaker = f"Speaker {segment.speaker_tag}" if segment.speaker_tag else "Speaker"
+            speaker = f"Speaker {speaker_id}" if speaker_id else "Speaker"
 
         # Format timestamp as MM:SS with clear formatting
-        timestamp = f"**[{format_timecode(segment.start)}]**"
+        timestamp = f"**[{format_timecode(segment['start'])}]**"
 
-        formatted_text.append(f"{timestamp} {speaker}: {segment.text}")
+        formatted_text.append(f"{timestamp} {speaker}: {segment['text']}")
 
     return "\n\n".join(formatted_text)  # Add extra newline for better readability

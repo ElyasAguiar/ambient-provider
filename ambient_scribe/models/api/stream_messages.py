@@ -43,14 +43,14 @@ class TranscriptionJobMessage(BaseModel):
         }
 
 
-class TranscriptionSegment(BaseModel):
-    """Single transcription segment with timing and speaker info."""
+class TranscriptionWord(BaseModel):
+    """Single transcription word with timing and speaker info."""
 
-    start: float = Field(..., description="Start time in seconds")
-    end: float = Field(..., description="End time in seconds")
-    text: str = Field(..., description="Transcribed text")
-    speaker_tag: Optional[int] = Field(None, description="Speaker identifier (0, 1, 2, ...)")
+    text: str = Field(..., description="Transcribed word")
+    start: float = Field(..., description="Start time in milliseconds")
+    end: float = Field(..., description="End time in milliseconds")
     confidence: Optional[float] = Field(None, description="Confidence score (0-1)")
+    speaker: Optional[str] = Field(None, description="Speaker identifier (A, B, C, ...)")
 
 
 class TranscriptionResultMessage(BaseModel):
@@ -59,13 +59,14 @@ class TranscriptionResultMessage(BaseModel):
     job_id: str = Field(..., description="Job identifier matching the request")
     transcript_id: str = Field(..., description="Database transcript ID")
     status: str = Field(..., description="Result status: 'completed' or 'failed'")
-    segments: List[Dict[str, Any]] = Field(
-        default_factory=list, description="List of transcription segments"
+    text: str = Field(default="", description="Complete transcription text")
+    words: List[Dict[str, Any]] = Field(
+        default_factory=list, description="List of transcription words"
     )
     duration: Optional[float] = Field(None, description="Total audio duration in seconds")
     language: Optional[str] = Field(None, description="Detected or specified language")
-    speaker_roles: Optional[Dict[int, str]] = Field(
-        None, description="Mapping of speaker_tag to role (patient/provider)"
+    speaker_roles: Optional[Dict[str, str]] = Field(
+        None, description="Mapping of speaker to role (patient/provider)"
     )
     error: Optional[str] = Field(None, description="Error message if status is 'failed'")
     retry_count: int = Field(default=0, description="Number of retry attempts made")
@@ -76,25 +77,26 @@ class TranscriptionResultMessage(BaseModel):
                 "job_id": "550e8400-e29b-41d4-a716-446655440000",
                 "transcript_id": "660e8400-e29b-41d4-a716-446655440001",
                 "status": "completed",
-                "segments": [
+                "text": "Bom dia Jesus...",
+                "words": [
                     {
-                        "start": 0.0,
-                        "end": 2.5,
-                        "text": "Hello, how are you feeling today?",
-                        "speaker_tag": 0,
-                        "confidence": 0.95,
+                        "text": "Bom",
+                        "start": 31,
+                        "end": 612,
+                        "confidence": 0.935,
+                        "speaker": "A",
                     },
                     {
-                        "start": 2.8,
-                        "end": 5.0,
-                        "text": "I've been having some chest pain.",
-                        "speaker_tag": 1,
+                        "text": "dia",
+                        "start": 615,
+                        "end": 890,
                         "confidence": 0.92,
+                        "speaker": "A",
                     },
                 ],
-                "duration": 5.0,
-                "language": "en",
-                "speaker_roles": {0: "provider", 1: "patient"},
+                "duration": 307,
+                "language": "pt",
+                "speaker_roles": {"A": "provider", "B": "patient"},
                 "error": None,
                 "retry_count": 0,
             }

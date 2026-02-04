@@ -32,7 +32,7 @@ import soundfile as sf
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ambient_scribe.deps import Settings
-from ambient_scribe.models.api.transcripts_schema import Transcript, TranscriptSegment
+from ambient_scribe.models.api.transcripts_schema import Transcript, TranscriptWord
 from ambient_scribe.services.domain_manager import DomainManager
 
 logger = logging.getLogger(__name__)
@@ -54,14 +54,20 @@ async def detect_speaker_roles(transcript: Transcript, settings: Settings) -> di
     try:
         from openai import AsyncOpenAI
 
-        # Prepare sample text from first few segments
-        sample_segments = []
-        for segment in transcript.segments[:10]:  # First 10 segments only
-            if segment.speaker_tag is not None:
-                sample_segments.append(f"Speaker {segment.speaker_tag}: {segment.text}")
+        # Prepare sample text from first few words (grouped by speaker)
+        sample_speakers = {}
+        for word in transcript.words[:100]:  # First 100 words
+            if word.speaker:
+                if word.speaker not in sample_speakers:
+                    sample_speakers[word.speaker] = []
+                sample_speakers[word.speaker].append(word.text)
 
-        if not sample_segments:
+        if not sample_speakers:
             return {}
+
+        sample_segments = []
+        for speaker, words in sample_speakers.items():
+            sample_segments.append(f"Speaker {speaker}: {' '.join(words[:20])}")
 
         sample_text = "\n".join(sample_segments)
 
@@ -69,7 +75,7 @@ async def detect_speaker_roles(transcript: Transcript, settings: Settings) -> di
 
 {sample_text}
 
-Return only a JSON object: {{"patient": speaker_number, "provider": speaker_number}}"""
+Return only a JSON object: {{"patient": "speaker_id", "provider": "speaker_id"}} where speaker_id is A, B, C, etc."""
 
         client = AsyncOpenAI(api_key=settings.nvidia_api_key, base_url=settings.openai_base_url)
         response = await client.chat.completions.create(
@@ -92,9 +98,9 @@ Return only a JSON object: {{"patient": speaker_number, "provider": speaker_numb
         # Convert to our format: {speaker_id: "patient"/"provider"}
         speaker_roles = {}
         if "patient" in result_json:
-            speaker_roles[result_json["patient"]] = "patient"
+            speaker_roles[str(result_json["patient"])] = "patient"
         if "provider" in result_json:
-            speaker_roles[result_json["provider"]] = "provider"
+            speaker_roles[str(result_json["provider"])] = "provider"
 
         return speaker_roles
 
@@ -198,15 +204,19 @@ async def transcribe_audio_file(
         response = asr_service.offline_recognize(audio_bytes, config)
 
         # Convert response to our format
-        segments = process_riva_response(response)
+        words = process_riva_response_to_words(response)
 
-        # Calculate total duration
-        duration = segments[-1].end if segments else 0.0
+        # Build complete text
+        text = " ".join(word.text for word in words)
+
+        # Calculate total duration (convert from ms to seconds)
+        duration = words[-1].end / 1000.0 if words else 0.0
 
         # Create transcript
         transcript = Transcript(
             id=transcript_id,
-            segments=segments,
+            words=words,
+            text=text,
             language=settings.riva_language,
             duration=duration,
             filename=filename,
@@ -329,7 +339,7 @@ async def stream_transcribe_audio_file(
         current_speaker = None
         accumulated_text = ""
         processed_finals = set()
-        segments = []
+        words = []
 
         try:
             with riva.client.AudioChunkFileIterator(
@@ -355,6 +365,7 @@ async def stream_transcribe_audio_file(
 
                         # Get speaker info
                         speaker = "Speaker"
+                        speaker_tag = 0
                         if hasattr(alternative, "words") and alternative.words:
                             speaker_tags = []
                             for word in alternative.words:
@@ -362,8 +373,8 @@ async def stream_transcribe_audio_file(
                                     speaker_tags.append(word.speaker_tag)
 
                             if speaker_tags:
-                                most_common_speaker = Counter(speaker_tags).most_common(1)[0][0]
-                                speaker = f"Speaker {most_common_speaker}"
+                                speaker_tag = Counter(speaker_tags).most_common(1)[0][0]
+                                speaker = f"Speaker {chr(65 + speaker_tag)}"
 
                         if result.is_final:
                             # Create a unique key for this final result
@@ -375,53 +386,48 @@ async def stream_transcribe_audio_file(
 
                             processed_finals.add(result_key)
 
-                            # Create transcript segment for final result
-                            start_time = 0.0
-                            end_time = 0.0
-                            confidence = 0.95
-
+                            # Process individual words
                             if hasattr(alternative, "words") and alternative.words:
-                                words = alternative.words
-                                if words:
-                                    try:
-                                        start_time = extract_time(words[0].start_time)
-                                        end_time = extract_time(words[-1].end_time)
-                                        confidences = [
-                                            getattr(word, "confidence", 1.0)
-                                            for word in words
-                                            if getattr(word, "confidence", None) is not None
-                                        ]
-                                        confidence = (
-                                            sum(confidences) / len(confidences)
-                                            if confidences
-                                            else 0.95
-                                        )
-                                    except:
-                                        pass
+                                for word_obj in alternative.words:
+                                    word_text = getattr(word_obj, "word", "").strip()
+                                    if not word_text:
+                                        continue
 
-                            # Extract speaker number
-                            speaker_tag = 0
-                            try:
-                                if speaker.startswith("Speaker "):
-                                    speaker_tag = int(speaker.split(" ")[1])
-                            except:
-                                speaker_tag = 0
+                                    # Get speaker
+                                    word_speaker_tag = getattr(word_obj, "speaker_tag", speaker_tag)
+                                    word_speaker = (
+                                        chr(65 + word_speaker_tag)
+                                        if word_speaker_tag is not None
+                                        else "A"
+                                    )
 
-                            segment = TranscriptSegment(
-                                start=start_time,
-                                end=max(end_time, start_time),
-                                text=transcript,
-                                speaker_tag=speaker_tag,
-                                confidence=confidence,
-                            )
-                            segments.append(segment)
+                                    # Get timestamps in milliseconds
+                                    start_ms = (
+                                        extract_time(word_obj.start_time) * 1000.0
+                                        if hasattr(word_obj, "start_time")
+                                        else 0.0
+                                    )
+                                    end_ms = (
+                                        extract_time(word_obj.end_time) * 1000.0
+                                        if hasattr(word_obj, "end_time")
+                                        else 0.0
+                                    )
+                                    confidence = getattr(word_obj, "confidence", None)
 
-                            # Yield final segment
+                                    word = TranscriptWord(
+                                        text=word_text,
+                                        start=start_ms,
+                                        end=end_ms,
+                                        confidence=confidence,
+                                        speaker=word_speaker,
+                                    )
+                                    words.append(word)
+
+                            # Yield final segment update
                             yield {
                                 "type": "final_segment",
-                                "segment": segment.dict(),
+                                "text": transcript,
                                 "speaker": speaker,
-                                "speaker_tag": speaker_tag,
                             }
 
                         else:
@@ -441,12 +447,16 @@ async def stream_transcribe_audio_file(
                 Path(temp_wav_file).unlink()
                 print(f"Cleaned up temporary file: {temp_wav_file}")
 
+        # Build complete text
+        text = " ".join(word.text for word in words)
+
         # Create final transcript object
-        duration = segments[-1].end if segments else 0.0
+        duration = words[-1].end / 1000.0 if words else 0.0
 
         transcript_obj = Transcript(
             id=transcript_id,
-            segments=segments,
+            words=words,
+            text=text,
             language=settings.riva_language,
             duration=duration,
             filename=filename,
@@ -516,238 +526,152 @@ def convert_to_wav(file_path: Path) -> io.BytesIO:
         raise Exception(f"Audio conversion failed: {str(e)}")
 
 
-def process_riva_response(response) -> List[TranscriptSegment]:
-    """Process Riva ASR response into transcript segments."""
+def process_riva_response_to_words(response) -> List[TranscriptWord]:
+    """Process Riva ASR response into transcript words."""
 
     print(f"DEBUG: Riva response: {response}")
 
-    segments = []
+    words = []
 
-    # Group words by consecutive speaker tag
-    word_groups = []
-    current_speaker = None
-    current_words = []
+    # Convert speaker_tag (int) to speaker (A, B, C...)
+    def speaker_tag_to_letter(tag: Optional[int]) -> str:
+        if tag is None or tag < 0:
+            return "A"
+        return chr(65 + tag)  # 0->A, 1->B, 2->C, etc.
 
     try:
         for result in response.results:
-            # If words list is missing, skip grouping for this result
             words_list = getattr(result.alternatives[0], "words", []) or []
-
-            # First pass: collect all words and infer missing speaker tags
-            processed_words = []
             last_known_speaker = None
 
             for word in words_list:
-                # Check if word has explicit speaker_tag
+                # Extract word text
+                word_text = getattr(word, "word", "").strip()
+                if not word_text:
+                    continue
+
+                # Get speaker tag
                 if hasattr(word, "speaker_tag") and word.speaker_tag is not None:
-                    speaker = word.speaker_tag
-                    last_known_speaker = speaker
+                    speaker_tag = word.speaker_tag
+                    last_known_speaker = speaker_tag
                 else:
-                    # Word doesn't have speaker_tag, use last known speaker or default to 1
-                    speaker = last_known_speaker if last_known_speaker is not None else 1
-                    print(
-                        f"DEBUG: Word '{getattr(word, 'word', '')}' missing speaker_tag, assigned to speaker {speaker}"
+                    speaker_tag = last_known_speaker if last_known_speaker is not None else 0
+
+                speaker = speaker_tag_to_letter(speaker_tag)
+
+                # Get confidence
+                confidence = getattr(word, "confidence", None)
+
+                # Get timestamps and convert to milliseconds
+                def safe_time_ms(get_time_attr):
+                    try:
+                        t = get_time_attr()
+
+                        # Try different ways to extract time
+                        if hasattr(t, "seconds") and hasattr(t, "nanos"):
+                            seconds = getattr(t, "seconds", None)
+                            nanos = getattr(t, "nanos", None)
+                            if seconds is not None and nanos is not None:
+                                time_val = seconds + nanos / 1e9
+                                # Convert seconds to milliseconds
+                                return max(0.0, time_val * 1000.0)
+
+                        # Try if it's already a numeric value (assume seconds)
+                        if isinstance(t, (int, float)):
+                            time_val = float(t)
+                            # Convert seconds to milliseconds
+                            return max(0.0, time_val * 1000.0)
+
+                        # Try if it has a total_seconds method
+                        if hasattr(t, "total_seconds"):
+                            time_val = t.total_seconds()
+                            return max(0.0, time_val * 1000.0)
+
+                    except Exception as e:
+                        print(f"DEBUG: Exception in safe_time_ms: {e}")
+
+                    return 0.0
+
+                start_ms = safe_time_ms(lambda: word.start_time)
+                end_ms = safe_time_ms(lambda: word.end_time)
+
+                # Ensure end >= start
+                if end_ms < start_ms:
+                    end_ms = start_ms
+
+                words.append(
+                    TranscriptWord(
+                        text=word_text,
+                        start=start_ms,
+                        end=end_ms,
+                        confidence=confidence,
+                        speaker=speaker,
                     )
-
-                processed_words.append((word, speaker))
-
-            # Second pass: group by consecutive speaker
-            for word, speaker in processed_words:
-                if speaker != current_speaker:
-                    if current_words:
-                        word_groups.append((current_speaker, current_words))
-                    current_speaker = speaker
-                    current_words = [word]
-                else:
-                    current_words.append(word)
-
-        if current_words:
-            word_groups.append((current_speaker, current_words))
-
-        # Convert word groups to segments, tolerating missing timestamps
-        for speaker, words in word_groups:
-            if not words:
-                continue
-
-            def safe_time(get_time_attr):
-                try:
-                    t = get_time_attr()
-                    print(f"DEBUG: Time object: {t}, type: {type(t)}")
-
-                    # Try different ways to extract time
-                    if hasattr(t, "seconds") and hasattr(t, "nanos"):
-                        seconds = getattr(t, "seconds", None)
-                        nanos = getattr(t, "nanos", None)
-                        if seconds is not None and nanos is not None:
-                            time_val = seconds + nanos / 1e9
-                            print(f"DEBUG: Extracted time from seconds/nanos: {time_val}s")
-
-                            # Validate the timestamp - should be reasonable for a conversation (< 1 hour typically)
-                            if time_val > 3600:  # More than 1 hour
-                                print(
-                                    f"DEBUG: Timestamp too large ({time_val}s), might be in wrong units"
-                                )
-
-                                # Try different conversion factors
-                                candidates = [
-                                    (1000, "milliseconds"),
-                                    (1000000, "microseconds"),
-                                    (1000000000, "nanoseconds"),
-                                    (
-                                        60,
-                                        "minutes",
-                                    ),  # Sometimes Riva returns minutes instead of seconds
-                                ]
-
-                                for factor, name in candidates:
-                                    converted = time_val / factor
-                                    if 0 <= converted <= 3600:  # Reasonable range: 0 to 1 hour
-                                        time_val = converted
-                                        print(f"DEBUG: Converted from {name}: {time_val}s")
-                                        break
-
-                                # If still unreasonable, return 0 to trigger estimation
-                                if time_val > 3600:
-                                    print(f"DEBUG: Could not convert large timestamp, returning 0")
-                                    return 0.0
-
-                            return max(0.0, time_val)
-
-                    # Try if it's already a float/int
-                    if isinstance(t, (int, float)):
-                        time_val = float(t)
-                        print(f"DEBUG: Direct numeric time: {time_val}s")
-
-                        # Apply the same validation
-                        if time_val > 3600:
-                            print(
-                                f"DEBUG: Direct timestamp too large ({time_val}s), trying conversions"
-                            )
-
-                            # Try different conversion factors
-                            candidates = [
-                                (1000, "milliseconds"),
-                                (1000000, "microseconds"),
-                                (1000000000, "nanoseconds"),
-                                (60, "minutes"),
-                            ]
-
-                            for factor, name in candidates:
-                                converted = time_val / factor
-                                if 0 <= converted <= 3600:
-                                    time_val = converted
-                                    print(f"DEBUG: Converted from {name}: {time_val}s")
-                                    break
-
-                            if time_val > 3600:
-                                return 0.0
-
-                        return max(0.0, time_val)
-
-                    # Try if it has a total_seconds method
-                    if hasattr(t, "total_seconds"):
-                        time_val = t.total_seconds()
-                        print(f"DEBUG: total_seconds(): {time_val}s")
-                        return max(0.0, time_val)
-
-                    print(f"DEBUG: No valid time extraction method found for: {t}")
-                except Exception as e:
-                    print(f"DEBUG: Exception in safe_time: {e}")
-
-                return 0.0
-
-            start_time = safe_time(lambda: words[0].start_time)
-            end_time = safe_time(lambda: words[-1].end_time)
-            text = " ".join([getattr(word, "word", "") for word in words]).strip()
-
-            confidences = [
-                getattr(word, "confidence", 1.0)
-                for word in words
-                if getattr(word, "confidence", None) is not None
-            ]
-            avg_confidence = sum(confidences) / len(confidences) if confidences else 1.0
-
-            segments.append(
-                TranscriptSegment(
-                    start=start_time,
-                    end=max(end_time, start_time),
-                    text=text,
-                    speaker_tag=speaker if speaker is not None else 0,
-                    confidence=avg_confidence,
                 )
-            )
-    except Exception:
+
+    except Exception as e:
+        print(f"DEBUG: Exception processing words: {e}")
         pass
 
-    # If we still have no segments, try to parse from transcript text that includes labels like 'speaker_1: '
-    if not segments:
+    # If we still have no words, try to extract from full transcript text
+    if not words:
         full_text = " ".join(
             [
                 getattr(result.alternatives[0], "transcript", "")
                 for result in getattr(response, "results", [])
             ]
         ).strip()
-        if full_text:
-            import re
 
-            pattern = re.compile(r"(?:^|\n)\s*(speaker[_\s-]?(\d+))\s*:\s*", re.IGNORECASE)
-            parts = pattern.split(full_text)
-            # parts will be like [pre, 'speaker_1', '1', text1, 'speaker_2', '2', text2, ...]
-            if len(parts) > 1:
-                it = iter(parts)
-                preface = next(it, "")  # text before first label
-                # If there is preface text, keep as unlabeled first segment
-                if preface.strip():
-                    segments.append(
-                        TranscriptSegment(
-                            start=0.0,
-                            end=0.0,
-                            text=preface.strip(),
-                            speaker_tag=0,
-                            confidence=1.0,
-                        )
-                    )
-                while True:
-                    try:
-                        _label = next(it)
-                        speaker_num_str = next(it)
-                        body = next(it)
-                        speaker_num = (
-                            int(speaker_num_str)
-                            if speaker_num_str and speaker_num_str.isdigit()
-                            else 0
-                        )
-                        if body.strip():
-                            segments.append(
-                                TranscriptSegment(
-                                    start=0.0,
-                                    end=0.0,
-                                    text=body.strip(),
-                                    speaker_tag=speaker_num,
-                                    confidence=1.0,
-                                )
-                            )
-                    except StopIteration:
-                        break
-            else:
-                # Final fallback: single segment
-                segments.append(
-                    TranscriptSegment(
+        if full_text:
+            # Split into words and create basic word entries
+            word_texts = full_text.split()
+            for i, word_text in enumerate(word_texts):
+                words.append(
+                    TranscriptWord(
+                        text=word_text,
                         start=0.0,
                         end=0.0,
-                        text=full_text,
-                        speaker_tag=0,
                         confidence=1.0,
+                        speaker="A",
                     )
                 )
 
     # Post-process to add estimated timestamps if all are 0
-    segments = add_estimated_timestamps(segments)
+    if words and all(w.start == 0.0 and w.end == 0.0 for w in words):
+        words = add_estimated_word_timestamps(words)
 
-    # Post-process to fix inconsistent timestamps
-    segments = fix_inconsistent_timestamps(segments)
+    return words
 
-    return segments
+
+def add_estimated_word_timestamps(words: List[TranscriptWord]) -> List[TranscriptWord]:
+    """Add estimated timestamps to words that have 0.0 timestamps."""
+    if not words:
+        return words
+
+    # Estimate based on average speaking rate: ~150 words per minute = 2.5 words/sec = 400ms per word
+    avg_word_duration_ms = 400.0
+    current_time_ms = 0.0
+
+    result = []
+    for word in words:
+        if word.start == 0.0 and word.end == 0.0:
+            # Estimate duration based on word length (longer words take more time)
+            estimated_duration = avg_word_duration_ms * (1 + len(word.text) / 10.0)
+            result.append(
+                TranscriptWord(
+                    text=word.text,
+                    start=current_time_ms,
+                    end=current_time_ms + estimated_duration,
+                    confidence=word.confidence,
+                    speaker=word.speaker,
+                )
+            )
+            current_time_ms += estimated_duration
+        else:
+            result.append(word)
+            current_time_ms = max(current_time_ms, word.end)
+
+    return result
 
 
 def fix_inconsistent_timestamps(

@@ -309,11 +309,11 @@ def _get_transcript_based_suggestions(
     """Get suggestions based on transcript content."""
     suggestions = []
 
-    if not transcript.segments:
+    if not transcript.text:
         return suggestions
 
     # Extract words and phrases from transcript
-    all_text = " ".join(segment.text for segment in transcript.segments)
+    all_text = transcript.text
 
     # Find words/phrases that start with the prefix
     words = re.findall(r"\b\w+", all_text.lower())
@@ -385,8 +385,8 @@ async def _get_ai_powered_suggestions(
         prompt_parts.insert(1, f"Context: {context[-200:]}")  # Last 200 chars of context
 
     if transcript:
-        # Include relevant transcript excerpts
-        transcript_text = " ".join(segment.text for segment in transcript.segments[:5])
+        # Include relevant transcript excerpts (first ~100 words)
+        transcript_text = " ".join(transcript.text.split()[:100])
         prompt_parts.insert(-2, f"Patient discussion excerpt: {transcript_text[:300]}")
 
     prompt = "\n".join(prompt_parts)
